@@ -21,7 +21,11 @@ export const FormModel = sqliteTable("form", {
 
   retentionAt: integer("retentionAt", { mode: "number" }).default(0),
 
-  createdAt: integer("createdAt", { mode: "number" }).default(sql`unixepoch()`),
+  createdAt: integer("createdAt", { mode: "number" }).default(
+    sql`(strftime('%s', 'now'))`
+  ),
 
-  updatedAt: integer("updatedAt", { mode: "number" }).default(sql`unixepoch()`),
+  updatedAt: integer("updatedAt", { mode: "number" }).default(
+    sql`(strftime('%s', 'now'))`
+  ),
 });

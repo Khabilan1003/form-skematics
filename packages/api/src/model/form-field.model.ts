@@ -5,9 +5,7 @@ import { FieldKindEnum, FieldLayoutAlignEnum } from "@form/shared-type-enums";
 export const FormFieldModel = sqliteTable("formfield", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
-  formid: integer("formid")
-    .primaryKey()
-    .references(() => FormModel.id),
+  formid: integer("formid").references(() => FormModel.id),
 
   position: integer("position").notNull().default(0),
 
