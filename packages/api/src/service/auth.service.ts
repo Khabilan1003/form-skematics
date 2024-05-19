@@ -64,7 +64,6 @@ export class AuthService {
     type = RandomType.NUMERIC
   ): Promise<string> {
     const code = random(length, type);
-
     await RedisService.hset({
       key,
       field: code,

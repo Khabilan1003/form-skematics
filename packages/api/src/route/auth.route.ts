@@ -1,14 +1,13 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
 import { UserService } from "../service/user.service";
 import { encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
 import { comparePassword, passwordHash } from "../utils/crypto";
 import { BCRYPT_SALT } from "../environments";
-import { gravatar, parseUserAgent } from "../utils";
-import { AuthService } from "../service/auth.service";
+import { gravatar } from "../utils";
 import MailService from "../service/mail.service";
+import { AuthService } from "../service/auth.service";
 
 // Zod Validation
 const signUpBodySchema = z.object({
@@ -123,7 +122,7 @@ router.post("send-reset-password-email", async (c) => {
   // Add a code of reset password to cache
   const key = `reset_password:${user!.id}`;
   const code = await AuthService.getVerificationCode(key);
-
+  
   MailService.emailVerificationRequest(user!.email, code);
 
   return c.json({ success: true });

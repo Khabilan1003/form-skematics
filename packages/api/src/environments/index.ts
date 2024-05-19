@@ -46,3 +46,7 @@ export const EMAIL_TEMPLATES_DIR: string = resolve(
 export const BCRYPT_SALT: number = process.env.BCRYPT_SALT
   ? +process.env.BCRYPT_SALT
   : 10;
+
+// Account Deletion
+export const ACCOUNT_DELETION_SCHEDULE_INTERVAL: string =
+  process.env.ACCOUNT_DELETION_SCHEDULE_INTERVAL || "2d";

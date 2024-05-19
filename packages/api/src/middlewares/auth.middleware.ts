@@ -14,5 +14,5 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
   c.set("user", user);
 
-  next();
+  await next();
 });
