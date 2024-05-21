@@ -1,57 +1,41 @@
 import type {
   ActionEnum,
   CalculateEnum,
-  CaptchaKindEnum,
   ComparisonEnum,
   FieldKindEnum,
   FieldLayoutAlignEnum,
+  FontSizeEnum,
   FormKindEnum,
   FormStatusEnum,
 } from "./enums/form";
 
-export interface FormSettings {
-  captchaKind?: CaptchaKindEnum;
+export interface FormSetting {
+  allowArchive?: boolean;
 
-  active?: boolean;
+  requirePassword?: boolean;
+  password?: string;
+
+  enableIpLimit?: boolean;
+  ipLimitCount?: number;
+
+  published?: boolean;
 
   enableExpirationDate?: boolean;
-  expirationTimeZone?: string;
 
   enabledAt?: number;
   closedAt?: number;
 
-  published?: boolean;
-  allowArchive?: boolean;
-
-  password?: string;
-  requirePassword?: boolean;
-
   enableQuotaLimit?: boolean;
   quotaLimit?: number;
 
-  enableIpLimit?: boolean;
-  ipLimitCount?: number;
-  enableProgress?: boolean;
+  closedFormTitle?: string;
+  closedFormDescription?: string;
 }
 
 export interface Choice {
   id: string;
   label: string;
-
-  // Picture choice
   image?: string;
-  icon?: {
-    name: string;
-    color: string;
-    background: string;
-  };
-
-  // HeySheet custom columns
-  color?: string;
-
-  // Quiz
-  score?: number;
-  isExpected?: boolean;
 }
 
 export interface Column {
@@ -87,7 +71,6 @@ export interface Property {
   allowMultiple?: boolean;
   choices?: Choice[];
   randomize?: boolean;
-  other?: string;
 
   // Rating
   shape?: string;
@@ -102,11 +85,8 @@ export interface Property {
   defaultCountryCode?: string;
 
   // Date
-  format?: string;
-  // Allow input time
+  dateFormat?: string;
   allowTime?: boolean;
-  // Time
-  timeFormat?: string;
 }
 
 export interface Validation {
@@ -117,42 +97,30 @@ export interface Validation {
 }
 
 export interface FormField {
-  id: string;
-  title?: string | any[];
-  description?: string | any[];
-  kind: FieldKindEnum;
-  validations?: Validation;
+  position?: number;
+  title?: string;
+  description?: string;
+  kind?: FieldKindEnum;
+  required?: boolean;
+  layoutMediaType?: "IMAGE" | "VIDEO";
+  layoutMediaUrl?: string;
+  layoutBrightness?: number;
+  layoutAlign?: FieldLayoutAlignEnum;
   properties?: Property;
-
-  // Label for short title
-  label?: string;
-
-  layout?: Layout;
-
-  // HeyForm question number
-  number?: number;
-
-  index?: number;
-
-  hide?: boolean;
 }
 
 export interface FormTheme {
   fontFamily?: string;
-  
-  screenFontSize?: "small" | "normal" | "large";
-  fieldFontSize?: "small" | "normal" | "large";
-  
+
+  screenFontSize?: FontSizeEnum;
+  fieldFontSize?: FontSizeEnum;
+
   questionTextColor?: string;
   answerTextColor?: string;
-  
-  buttonBackgroundColor?: string;
   buttonTextColor?: string;
-  
-  backgroundColor?: string;
 
-  backgroundImage?: string;
-  backgroundBrightness?: number;
+  buttonBackgroundColor?: string;
+  backgroundColor?: string;
 }
 
 export interface ThemeSettings {
@@ -162,15 +130,13 @@ export interface ThemeSettings {
 
 export interface FormModel {
   id: string;
-  teamId: string;
-  projectId: string;
   memberId: string;
   name: string;
   kind: FormKindEnum;
 
-  settings?: FormSettings;
+  settings?: FormSetting;
   themeSettings?: ThemeSettings;
-  
+
   fields?: FormField[];
   variables?: Variable[];
   logics?: Logic[];

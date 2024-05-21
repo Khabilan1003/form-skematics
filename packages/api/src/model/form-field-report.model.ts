@@ -3,7 +3,7 @@ import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { FormFieldModel } from "./form-field.model";
 
 export const FormFieldReportModel = sqliteTable("formfieldreport", {
-  fieldid: integer("fieldid")
+  fieldId: integer("fieldId")
     .primaryKey()
     .references(() => FormFieldModel.id),
 

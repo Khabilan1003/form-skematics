@@ -1,16 +1,16 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import { FormModel } from './form.model';
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { FormModel } from "./form.model";
 
-export const FormVariableModel = sqliteTable('formvariable', {
-	id: integer('id').primaryKey({ autoIncrement: true }).notNull(),
+export const FormVariableModel = sqliteTable("formvariable", {
+  id: integer("id").primaryKey({ autoIncrement: true }).notNull(),
 
-	formid: integer('formid')
-		.notNull()
-		.references(() => FormModel.id),
+  formId: integer("formId")
+    .notNull()
+    .references(() => FormModel.id, { onDelete: "cascade" }),
 
-	name: text('name').notNull(),
+  name: text("name").notNull(),
 
-	kind: text('kind', { enum: ['STRING', 'NUMBER'] }).notNull(),
+  kind: text("kind", { enum: ["STRING", "NUMBER"] }).notNull(),
 
-	value: text('value').notNull(),
+  value: text("value").notNull(),
 });

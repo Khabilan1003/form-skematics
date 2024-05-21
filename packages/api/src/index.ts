@@ -6,6 +6,7 @@ import { prettyJSON } from "hono/pretty-json";
 import { PORT } from "./environments";
 import AuthRouter from "./route/auth.route";
 import UserRouter from "./route/user.route";
+import FormRouter from "./route/form.route";
 
 // Initialize the Hono App
 const app = new Hono().basePath("/api/v1");
@@ -22,6 +23,7 @@ app.use(
 // Routes
 app.route("/", UserRouter);
 app.route("/", AuthRouter);
+app.route("/", FormRouter);
 
 // Start Server
 export default {

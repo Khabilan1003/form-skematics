@@ -6,9 +6,9 @@ import { FormStatusEnum } from "@form/shared-type-enums";
 export const FormModel = sqliteTable("form", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
-  userid: integer("userid")
+  userId: integer("userId")
     .notNull()
-    .references(() => UserModel.id),
+    .references(() => UserModel.id, { onDelete: "cascade" }),
 
   name: text("name").notNull(),
 

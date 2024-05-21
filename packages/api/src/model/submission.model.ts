@@ -5,13 +5,15 @@ import { FormModel } from "./form.model";
 export const SubmissionModel = sqliteTable("submission", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
 
-  formid: integer("formid", { mode: "number" }).references(() => FormModel.id),
+  formId: integer("formId", { mode: "number" }).references(() => FormModel.id, {
+    onDelete: "cascade",
+  }),
 
   ip: text("ip", { mode: "text" }).notNull(),
 
-  startat: integer("startat", { mode: "number" }).notNull(),
+  startAt: integer("startAt", { mode: "number" }).notNull(),
 
-  endat: integer("endat", { mode: "number" }).notNull(),
+  endAt: integer("endAt", { mode: "number" }).notNull(),
 
   createdAt: integer("createdAt", { mode: "number" }).default(
     sql`(strftime('%s', 'now'))`

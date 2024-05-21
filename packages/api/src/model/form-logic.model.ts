@@ -11,11 +11,11 @@ import {
 export const FormLogicModel = sqliteTable("formlogic", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
-  formid: integer("formid")
+  formId: integer("formId")
     .notNull()
-    .references(() => FormModel.id),
+    .references(() => FormModel.id, { onDelete: "cascade" }),
 
-  fieldid: integer("fieldid")
+  fieldId: integer("fieldId")
     .notNull()
     .references(() => FormFieldModel.id),
 
@@ -31,11 +31,11 @@ export const FormLogicModel = sqliteTable("formlogic", {
     enum: Object.values(ActionEnum) as [string, ...string[]],
   }),
 
-  navigatefieldid: integer("navigatefieldid").references(
+  navigateFieldId: integer("navigateFieldId").references(
     () => FormFieldModel.id
   ),
 
-  variableid: integer("variableid").references(() => FormVariableModel.id),
+  variableId: integer("variableId").references(() => FormVariableModel.id),
 
   // Get the operator from the shared-enums
   operator: text("operator", {

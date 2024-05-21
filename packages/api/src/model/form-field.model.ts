@@ -1,11 +1,14 @@
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { FormModel } from "./form.model";
 import { FieldKindEnum, FieldLayoutAlignEnum } from "@form/shared-type-enums";
+import { Property } from "@form/shared-type-enums";
 
 export const FormFieldModel = sqliteTable("formfield", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
-  formid: integer("formid").references(() => FormModel.id),
+  formId: integer("formId").references(() => FormModel.id, {
+    onDelete: "cascade",
+  }),
 
   position: integer("position").notNull().default(0),
 
@@ -19,29 +22,15 @@ export const FormFieldModel = sqliteTable("formfield", {
 
   required: integer("required", { mode: "boolean" }).default(false),
 
-  layoutmediatype: text("layoutmediatype", { enum: ["IMAGE", "VIDEO"] }),
+  layoutMediaType: text("layoutMediaType", { enum: ["IMAGE", "VIDEO"] }),
 
-  layoutmediaurl: text("layoutmediaurl"),
+  layoutMediaUrl: text("layoutMediaUrl"),
 
-  layoutbrightness: integer("layoutbrightness"),
+  layoutBrightness: integer("layoutBrightness"),
 
-  layoutalign: text("layoutalign", {
+  layoutAlign: text("layoutAlign", {
     enum: Object.values(FieldLayoutAlignEnum) as [string, ...string[]],
   }),
 
-  property: text("property", { mode: "json" }).$type<{
-    buttonText?: string;
-    allowOther?: boolean;
-    allowMultiple?: boolean;
-    choices?: any[];
-    randomize?: boolean;
-    step?: number;
-    shape?: string;
-    leftLabel?: string;
-    centerLabel?: string;
-    rightLabel?: string;
-    defaultCountryCode?: string;
-    dateFormat?: string;
-    allowTime?: boolean;
-  }>(),
+  property: text("property", { mode: "json" }).$type<Property>(),
 });

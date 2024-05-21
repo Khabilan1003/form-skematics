@@ -3,23 +3,42 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { FormModel } from "./form.model";
 
 export const FormSettingModel = sqliteTable("formsetting", {
-  formid: integer("formid")
+  formId: integer("formId")
     .primaryKey()
-    .references(() => FormModel.id),
+    .references(() => FormModel.id, { onDelete: "cascade" }),
 
-  allowarchive: integer("allowarchive", { mode: "boolean" }).default(true),
+  // Allow to store submissions
+  allowArchive: integer("allowArchive", { mode: "boolean" }).default(true),
 
-  requirepassword: integer("requirepassword", { mode: "boolean" }).default(
+  // Password to open the form for submission
+  requirePassword: integer("requirePassword", { mode: "boolean" }).default(
     false
   ),
-
   password: text("password"),
 
-  enableiplimit: integer("enableiplimit", { mode: "boolean" }).default(false),
+  // IP Limit
+  enableIpLimit: integer("enableIpLimit", { mode: "boolean" }).default(false),
+  ipLimitCount: integer("ipLimitCount", { mode: "number" }).default(1),
 
-  iplimitcount: integer("iplimitcount", { mode: "number" }),
-
+  // Is Form Published
   published: integer("published", { mode: "boolean" }).default(false),
+
+  // Expiration Date
+  enableExpirationDate: integer("enableExpirationDate", {
+    mode: "boolean",
+  }).default(false),
+  enabledAt: integer("enabledAt", { mode: "number" }).default(0),
+  closedAt: integer("closedAt", { mode: "number" }).default(0),
+
+  // Submission Limit
+  enableQuotaLimit: integer("enableQuotaLimit", { mode: "boolean" }).default(
+    false
+  ),
+  quotaLimit: integer("quotaLimit").default(0),
+
+  // Closed Form - Display Text
+  closedFormTitle: text("closedFormTitle"),
+  closedFormDescription: text("closedFormDescription"),
 
   createdAt: integer("createdAt", { mode: "number" }).default(
     sql`(strftime('%s', 'now'))`

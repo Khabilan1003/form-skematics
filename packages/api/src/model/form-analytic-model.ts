@@ -3,15 +3,15 @@ import { sqliteTable, integer } from "drizzle-orm/sqlite-core";
 import { FormModel } from "./form.model";
 
 export const FormAnalyticModel = sqliteTable("formanalytic", {
-  formid: integer("formid")
+  formId: integer("formId")
     .primaryKey()
     .references(() => FormModel.id),
 
-  totalvisits: integer("totalvisits", { mode: "number" }).default(0),
+  totalVisits: integer("totalVisits", { mode: "number" }).default(0),
 
-  submissioncount: integer("submissioncount", { mode: "number" }).default(0),
+  submissionCount: integer("submissionCount", { mode: "number" }).default(0),
 
-  averagetime: integer("averagetime", { mode: "number" }).default(0),
+  averageTime: integer("averageTime", { mode: "number" }).default(0),
 
   createdAt: integer("createdAt", { mode: "number" }).default(
     sql`(strftime('%s', 'now'))`

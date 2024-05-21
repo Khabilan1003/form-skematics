@@ -12,8 +12,7 @@ import {
 } from "../environments";
 import { helper, hs, timestamp } from "@form/utils";
 import { RedisService } from "../service/redis.service";
-import { UserModel } from "../model";
-import isEmail from "validator/lib/isEmail";
+import { zValidator } from "@hono/zod-validator";
 
 // Request Body Schema
 const updateEmailBodySchema = z.object({
@@ -45,7 +44,7 @@ const updateUserBodySchema = z.object({
 // Routes
 const router = new Hono().basePath("user");
 
-router.post("user-detail", authMiddleware, async (c) => {
+router.get("user-detail", authMiddleware, async (c) => {
   const user: Record<string, any> = c.get("user" as never);
   return c.json({ ...user });
 });
@@ -65,44 +64,55 @@ router.post("email-verification-code", authMiddleware, async (c) => {
   return c.json({ success: true });
 });
 
-router.post("verify-email", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
+router.post(
+  "verify-email",
+  authMiddleware,
+  zValidator("json", verifyEmailBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const data = await c.req.json();
-  const input = verifyEmailBodySchema.parse(data);
+    const input = c.req.valid("json");
 
-  if (user.isEmailVerified)
-    throw new HTTPException(400, { message: "Email is already verified" });
+    if (user.isEmailVerified)
+      throw new HTTPException(400, { message: "Email is already verified" });
 
-  const key = `verify_email:${user.id}`;
-  await AuthService.checkVerificationCode(key, input.code);
+    const key = `verify_email:${user.id}`;
+    await AuthService.checkVerificationCode(key, input.code);
 
-  await UserService.update(user.id, {
-    isEmailVerified: true,
-  });
+    await UserService.update(user.id, {
+      isEmailVerified: true,
+    });
 
-  return c.json({ success: true });
-});
+    return c.json({ success: true });
+  }
+);
 
-router.post("update-user-password", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
+router.post(
+  "update-user-password",
+  authMiddleware,
+  zValidator("json", updateUserPasswordBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const data = await c.req.json();
-  const input = updateUserPasswordBodySchema.parse(data);
+    const input = c.req.valid("json");
 
-  const verified = await comparePassword(input.currentPassword, user.password);
+    const verified = await comparePassword(
+      input.currentPassword,
+      user.password
+    );
 
-  if (!verified)
-    throw new HTTPException(400, { message: "The password does not match" });
+    if (!verified)
+      throw new HTTPException(400, { message: "The password does not match" });
 
-  const result = await UserService.update(user.id, {
-    password: await passwordHash(input.newPassword, BCRYPT_SALT),
-  });
+    const result = await UserService.update(user.id, {
+      password: await passwordHash(input.newPassword, BCRYPT_SALT),
+    });
 
-  MailService.passwordChangeAlert(user.email);
+    MailService.passwordChangeAlert(user.email);
 
-  return c.json({ success: true });
-});
+    return c.json({ success: true });
+  }
+);
 
 router.post("user-deletion-code", authMiddleware, async (c) => {
   const user: Record<string, any> = c.get("user" as never);
@@ -115,24 +125,29 @@ router.post("user-deletion-code", authMiddleware, async (c) => {
   return c.json({ success: true });
 });
 
-router.post("verify-user-deletion", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
+router.post(
+  "verify-user-deletion",
+  authMiddleware,
+  zValidator("json", verifyEmailBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const data = await c.req.json();
-  const input = verifyEmailBodySchema.parse(data);
+    const input = c.req.valid("json");
 
-  const key = `user_deletion:${user.id}`;
-  await AuthService.checkVerificationCode(key, input.code);
+    const key = `user_deletion:${user.id}`;
+    await AuthService.checkVerificationCode(key, input.code);
 
-  await UserService.update(user.id, {
-    isDeletionScheduled: true,
-    deletionScheduledAt: timestamp() + hs(ACCOUNT_DELETION_SCHEDULE_INTERVAL)!,
-  });
+    await UserService.update(user.id, {
+      isDeletionScheduled: true,
+      deletionScheduledAt:
+        timestamp() + hs(ACCOUNT_DELETION_SCHEDULE_INTERVAL)!,
+    });
 
-  await MailService.scheduleAccountDeletionAlert(user.email, user.name);
+    await MailService.scheduleAccountDeletionAlert(user.email, user.name);
 
-  return c.json({ success: true });
-});
+    return c.json({ success: true });
+  }
+);
 
 router.post("cancel-user-deletion", authMiddleware, async (c) => {
   const user: Record<string, any> = c.get("user" as never);
@@ -149,83 +164,95 @@ router.post("cancel-user-deletion", authMiddleware, async (c) => {
   return c.json({ success: true });
 });
 
-router.post("change-email-code", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
+router.post(
+  "change-email-code",
+  authMiddleware,
+  zValidator("json", emailBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const data = await c.req.json();
-  const input = emailBodySchema.parse(data);
+    const input = c.req.valid("json");
 
-  if (isDisposableEmail(input.email)) {
-    throw new HTTPException(400, {
-      message:
-        "Error: Disposable email address detected, please use a work email to create the account",
+    if (isDisposableEmail(input.email)) {
+      throw new HTTPException(400, {
+        message:
+          "Error: Disposable email address detected, please use a work email to create the account",
+      });
+    }
+
+    const existUser = await UserService.findByEmail(input.email);
+
+    if (existUser) {
+      throw new HTTPException(400, {
+        message: "The email address is already exists",
+      });
+    }
+
+    // Add a code of new email address to cache
+    const key = `verify_email:${user.id}:${input.email}`;
+    const code = await AuthService.getVerificationCode(key);
+
+    MailService.emailVerificationRequest(input.email, code);
+
+    return c.json({ success: true });
+  }
+);
+
+router.post(
+  "update-email",
+  authMiddleware,
+  zValidator("json", updateEmailBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const input = c.req.valid("json");
+
+    const existUser = await UserService.findByEmail(input.email);
+    if (existUser) {
+      throw new HTTPException(400, {
+        message: "The email address is already exists",
+      });
+    }
+
+    const key = `verify_email:${user.id}:${input.email}`;
+    await AuthService.checkVerificationCode(key, input.code);
+
+    await UserService.update(user.id, {
+      email: input.email,
+      isEmailVerified: true,
     });
+
+    return c.json({ success: true });
   }
+);
 
-  const existUser = await UserService.findByEmail(input.email);
+router.post(
+  "update-user",
+  authMiddleware,
+  zValidator("json", updateUserBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  if (existUser) {
-    throw new HTTPException(400, {
-      message: "The email address is already exists",
-    });
+    const input = c.req.valid("json");
+
+    const updates: Record<string, string> = {};
+
+    if (helper.isValid(input.name)) {
+      updates.name = input.name!;
+    }
+
+    if (helper.isValid(input.avatar)) {
+      updates.avatar = input.avatar!;
+    }
+
+    if (helper.isEmpty(updates)) {
+      throw new HTTPException(400, { message: "Invalid Arguements" });
+    }
+
+    await UserService.update(user.id!, updates);
+
+    return c.json({ success: true });
   }
-
-  // Add a code of new email address to cache
-  const key = `verify_email:${user.id}:${input.email}`;
-  const code = await AuthService.getVerificationCode(key);
-
-  MailService.emailVerificationRequest(input.email, code);
-
-  return c.json({ success: true });
-});
-
-router.post("update-email", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
-
-  const data = await c.req.json();
-  const input = updateEmailBodySchema.parse(data);
-
-  const existUser = await UserService.findByEmail(input.email);
-  if (existUser) {
-    throw new HTTPException(400, {
-      message: "The email address is already exists",
-    });
-  }
-
-  const key = `verify_email:${user.id}:${input.email}`;
-  await AuthService.checkVerificationCode(key, input.code);
-
-  await UserService.update(user.id, {
-    email: input.email,
-    isEmailVerified: true,
-  });
-
-  return c.json({ success: true });
-});
-
-router.post("update-user", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
-
-  const data = await c.req.json();
-  const input = updateUserBodySchema.parse(data);
-
-  const updates: Record<string, string> = {};
-
-  if (helper.isValid(input.name)) {
-    updates.name = input.name!;
-  }
-
-  if (helper.isValid(input.avatar)) {
-    updates.avatar = input.avatar!;
-  }
-
-  if (helper.isEmpty(updates)) {
-    throw new HTTPException(400, { message: "Invalid Arguements" });
-  }
-
-  await UserService.update(user.id!, updates);
-
-  return c.json({ success: true });
-});
+);
 
 export default router;

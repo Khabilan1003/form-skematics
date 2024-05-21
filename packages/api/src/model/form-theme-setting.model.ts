@@ -1,29 +1,32 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { FormModel } from "./form.model";
+import { FontSizeEnum } from "@form/shared-type-enums";
 
 export const FormThemeSettingModel = sqliteTable("formthemesetting", {
-  formid: integer("formid")
+  formId: integer("formId")
     .primaryKey()
-    .references(() => FormModel.id),
+    .references(() => FormModel.id, { onDelete: "cascade" }),
 
-  fontfamily: text("fontfamily").notNull(),
+  fontFamily: text("fontFamily").notNull(),
 
-  screenfontsize: text("screenfontsize", {
-    enum: ["SMALL", "NORMAL", "LARGE"],
+  screenFontSize: text("screenFontSize", {
+    enum: Object.values(FontSizeEnum) as [string, ...string[]],
   }),
 
-  fieldfontsize: text("fieldfontsize", { enum: ["SMALL", "NORMAL", "LARGE"] }),
+  fieldFontSize: text("fieldFontSize", {
+    enum: Object.values(FontSizeEnum) as [string, ...string[]],
+  }),
 
-  questiontextcolor: text("questiontextcolor").notNull(),
+  questionTextColor: text("questionTextColor").notNull(),
 
-  answertextcolor: text("answertextcolor").notNull(),
+  answerTextColor: text("answerTextColor").notNull(),
 
-  buttontextcolor: text("buttontextcolor").notNull(),
+  buttonTextColor: text("buttonTextColor").notNull(),
 
-  buttonbackgroundcolor: text("buttonbackgroundcolor").notNull(),
+  buttonBackgroundColor: text("buttonBackgroundColor").notNull(),
 
-  backgroundcolor: text("backgroundcolor").notNull(),
+  backgroundColor: text("backgroundColor").notNull(),
 
   createdAt: integer("createdAt", { mode: "number" }).default(
     sql`(strftime('%s', 'now'))`
