@@ -20,7 +20,7 @@ export const FormLogicModel = sqliteTable("formlogic", {
     .references(() => FormFieldModel.id),
 
   // Get the Comparision Enum from the shared-enums
-  comparison: text("comparision", {
+  comparision: text("comparision", {
     enum: Object.values(ComparisonEnum) as [string, ...string[]],
   }),
 

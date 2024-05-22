@@ -1,86 +1,21 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middlewares";
 import { FormService } from "../service/form.service";
-import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import {
-  FieldKindEnum,
-  FieldLayoutAlignEnum,
-  FontSizeEnum,
-} from "@form/shared-type-enums";
 import { HTTPException } from "hono/http-exception";
+import { decodeUUIDToId } from "@form/utils";
+import {
+  createFormBodySchema,
+  createFormFieldBodySchema,
+  createFormVariableBodySchema,
+  updateFormFieldBodySchema,
+  updateFormSettingBodySchema,
+  updateFormThemeBodySchema,
+  updateFormVariableBodySchema,
+  formLogicBodySchema,
+} from "./schema/form.schema";
 
 const router = new Hono().basePath("form");
-
-const createFormBodySchema = z.object({
-  title: z.string().min(1),
-});
-
-const updateFormThemeBodySchema = z.object({
-  fontFamily: z.string().optional(),
-  screenFontSize: z.nativeEnum(FontSizeEnum).optional(),
-  fieldFontSize: z.nativeEnum(FontSizeEnum).optional(),
-  questionTextColor: z.string().optional(),
-  answerTextColor: z.string().optional(),
-  buttonTextColor: z.string().optional(),
-  buttonBackgroundColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-});
-
-const updateFormSettingBodySchema = z.object({
-  allowArchive: z.boolean().optional(),
-  requirePassword: z.boolean().optional(),
-  password: z.string().min(1).optional(),
-  enableIpLimit: z.boolean().optional(),
-  ipLimitCount: z.number().optional(),
-  published: z.boolean().optional(),
-  enableExpirationDate: z.boolean().optional(),
-  enabledAt: z.number().optional(),
-  closedAt: z.number().optional(),
-  enableQuotaLimit: z.boolean().optional(),
-  quotaLimit: z.number().optional(),
-  closedFormTitle: z.string().optional(),
-  closedFormDescription: z.string().optional(),
-});
-
-const createFormFieldBodySchema = z.object({
-  kind: z.nativeEnum(FieldKindEnum),
-});
-
-const updateFormFieldBodySchema = z.object({
-  position: z.number().optional(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  kind: z.nativeEnum(FieldKindEnum).optional(),
-  required: z.boolean().optional(),
-  layoutMediaType: z.enum(["IMAGE", "VIDEO"]).optional(),
-  layoutMediaUrl: z.string().optional(),
-  layoutBrightness: z.number().min(1).max(100).optional(),
-  layoutAlign: z.nativeEnum(FieldLayoutAlignEnum).optional(),
-  property: z
-    .object({
-      buttonText: z.string().optional(),
-      allowOther: z.boolean().optional(),
-      allowMultiple: z.boolean().optional(),
-      choices: z
-        .object({
-          id: z.number().optional(),
-          label: z.string().optional(),
-          image: z.string().optional(),
-        })
-        .optional(),
-      randomize: z.boolean().optional(),
-      shape: z.string().optional(),
-      total: z.number().min(1).max(10).optional(),
-      leftLabel: z.string().optional(),
-      centerLabel: z.string().optional(),
-      rightLabel: z.string().optional(),
-      defaultCountryCode: z.string().optional(),
-      dateFormat: z.string().optional(),
-      allowTime: z.boolean().optional(),
-    })
-    .optional(),
-});
 
 router.post(
   "/",
@@ -206,5 +141,123 @@ router.put(
     return c.json({ success: true });
   }
 );
+
+router.post(
+  ":formId/form-variable",
+  authMiddleware,
+  zValidator("json", createFormVariableBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const formId = c.req.param("formId");
+
+    const input = c.req.valid("json");
+
+    const fieldVariable = await FormService.createFormVariable(
+      user.id,
+      formId,
+      input
+    );
+
+    return c.json(fieldVariable);
+  }
+);
+
+router.put(
+  ":formId/form-variable/:variableId",
+  authMiddleware,
+  zValidator("json", updateFormVariableBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const formId = c.req.param("formId");
+    const variableId = c.req.param("variableId");
+
+    const input = c.req.valid("json");
+
+    await FormService.updateFormVariable(user.id, formId, variableId, input);
+
+    return c.json({ success: true });
+  }
+);
+
+router.delete(
+  ":formId/form-variable/:variableId",
+  authMiddleware,
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const formId = c.req.param("formId");
+    const variableId = c.req.param("variableId");
+
+    await FormService.deleteFormVariable(user.id, formId, variableId);
+
+    return c.json({ success: true });
+  }
+);
+
+router.post(
+  ":formId/form-logic",
+  authMiddleware,
+  zValidator("json", formLogicBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const formId = c.req.param("formId");
+
+    const input = c.req.valid("json");
+
+    const fieldLogic = await FormService.createFormLogic(user.id, formId, {
+      ...input,
+      fieldId: decodeUUIDToId(input.fieldId),
+      navigateFieldId: input.navigateFieldId
+        ? decodeUUIDToId(input.navigateFieldId)
+        : undefined,
+      variableId: input.variableId
+        ? decodeUUIDToId(input.variableId)
+        : undefined,
+    });
+
+    return c.json(fieldLogic);
+  }
+);
+
+router.put(
+  ":formId/form-logic/:logicId",
+  authMiddleware,
+  zValidator("json", formLogicBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const formId = c.req.param("formId");
+    const logicId = c.req.param("logicId");
+
+    const input = c.req.valid("json");
+
+    await FormService.updateFormLogic(user.id, formId, logicId, {
+      ...input,
+      fieldId: decodeUUIDToId(input.fieldId),
+      navigateFieldId: input.navigateFieldId
+        ? decodeUUIDToId(input.navigateFieldId)
+        : undefined,
+      variableId: input.variableId
+        ? decodeUUIDToId(input.variableId)
+        : undefined,
+    });
+
+    return c.json({ success: true });
+  }
+);
+
+router.delete(":formId/form-logic/:logicId", authMiddleware, async (c) => {
+  const user: Record<string, any> = c.get("user" as never);
+
+  const formId = c.req.param("formId");
+  const logicId = c.req.param("logicId");
+
+  await FormService.deleteFormLogic(user.id, formId, logicId);
+
+  return c.json({ success: true });
+});
 
 export default router;

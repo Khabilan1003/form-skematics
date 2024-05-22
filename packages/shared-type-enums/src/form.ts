@@ -139,7 +139,7 @@ export interface FormModel {
 
   fields?: FormField[];
   variables?: Variable[];
-  logics?: Logic[];
+  logics?: FormLogic[];
 
   fieldUpdateAt?: number;
   submissionCount?: number;
@@ -298,13 +298,13 @@ export type LogicAction =
   | NumberCalculateAction
   | StringCalculateAction;
 
-export interface LogicPayload {
-  id: string;
-  condition: LogicCondition;
-  action: LogicAction;
-}
-
-export interface Logic {
-  fieldId: string;
-  payloads: LogicPayload[];
+export interface FormLogic {
+  fieldId: number;
+  comparision: ComparisonEnum;
+  expected?: string | string[];
+  kind: ActionEnum;
+  navigateFieldId?: number;
+  variableId?: number;
+  operator?: CalculateEnum;
+  value?: string;
 }

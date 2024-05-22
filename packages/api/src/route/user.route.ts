@@ -3,7 +3,6 @@ import { authMiddleware } from "../middlewares";
 import { HTTPException } from "hono/http-exception";
 import { AuthService } from "../service/auth.service";
 import MailService from "../service/mail.service";
-import { z } from "zod";
 import { UserService } from "../service/user.service";
 import { comparePassword, isDisposableEmail, passwordHash } from "../utils";
 import {
@@ -13,33 +12,13 @@ import {
 import { helper, hs, timestamp } from "@form/utils";
 import { RedisService } from "../service/redis.service";
 import { zValidator } from "@hono/zod-validator";
-
-// Request Body Schema
-const updateEmailBodySchema = z.object({
-  email: z.string().min(1).email("Invalid Email Address Format"),
-  code: z.string().min(6).max(6),
-});
-
-const emailBodySchema = updateEmailBodySchema.pick({ email: true });
-
-const verifyEmailBodySchema = updateEmailBodySchema.pick({ code: true });
-
-const updateUserPasswordBodySchema = z.object({
-  currentPassword: z.string(),
-  newPassword: z
-    .string()
-    .min(8)
-    .max(100)
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[!#$%&()*+\-,.\/\\:<=>?@\[\]^_{|}~0-9a-zA-Z]{8,}$/
-    ),
-});
-
-const updateUserBodySchema = z.object({
-  name: z.string().optional(),
-  avatar: z.string().optional(),
-  restoreGravatar: z.boolean().optional(),
-});
+import {
+  verifyEmailBodySchema,
+  emailBodySchema,
+  updateEmailBodySchema,
+  updateUserBodySchema,
+  updateUserPasswordBodySchema,
+} from "./schema/user.schema";
 
 // Routes
 const router = new Hono().basePath("user");

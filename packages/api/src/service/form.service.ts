@@ -1,7 +1,11 @@
 import {
+  ActionEnum,
+  CalculateEnum,
+  ComparisonEnum,
   FieldKindEnum,
   FontSizeEnum,
   FormField,
+  FormLogic,
   FormStatusEnum,
   Property,
 } from "@form/shared-type-enums";
@@ -16,7 +20,7 @@ import {
 } from "../model";
 import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
-import { and, eq, gt, inArray, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { FormTheme, FormSetting } from "@form/shared-type-enums";
 
 export class FormService {
@@ -33,6 +37,50 @@ export class FormService {
     if (form[0].userId !== userId)
       throw new HTTPException(401, {
         message: "You do not have access to this form",
+      });
+  }
+
+  private static async isLogicBelongsToForm(formId: number, logicId: number) {
+    const logic = await db
+      .select()
+      .from(FormLogicModel)
+      .where(eq(FormLogicModel.id, logicId));
+
+    if (logic.length === 0)
+      throw new HTTPException(404, { message: "Logic Not Found" });
+
+    if (logic[0].formId !== formId)
+      throw new HTTPException(401, { message: "Logic belongs to other form" });
+  }
+
+  private static async isVariableBelongsToForm(
+    formId: number,
+    variableId: number
+  ) {
+    const logic = await db
+      .select()
+      .from(FormVariableModel)
+      .where(eq(FormLogicModel.id, variableId));
+
+    if (logic.length === 0)
+      throw new HTTPException(404, { message: "Logic Not Found" });
+
+    if (logic[0].formId !== formId)
+      throw new HTTPException(401, { message: "Logic belongs to other form" });
+  }
+
+  private static async isFieldBelongsToForm(formId: number, fieldId: number) {
+    const field = await db
+      .select()
+      .from(FormFieldModel)
+      .where(eq(FormFieldModel.id, fieldId));
+
+    if (field.length === 0)
+      throw new HTTPException(404, { message: "The field does not exist" });
+
+    if (field[0].formId !== formId)
+      throw new HTTPException(401, {
+        message: "This field does not belong to this form",
       });
   }
 
@@ -78,21 +126,21 @@ export class FormService {
       id: encodeIdToUUID(form[0].id),
       setting: {
         ...formSetting[0],
-        formid: encodeIdToUUID(formSetting[0].formId),
+        formId: encodeIdToUUID(formSetting[0].formId),
       },
       themeSetting: {
         ...formThemeSetting[0],
-        formid: encodeIdToUUID(formThemeSetting[0].formId),
+        formId: encodeIdToUUID(formThemeSetting[0].formId),
       },
       fields: formFields.map((formField) => ({
         ...formField,
         id: encodeIdToUUID(formField.id),
-        formid: encodeIdToUUID(formField.formId!),
+        formId: encodeIdToUUID(formField.formId!),
       })),
       variables: formVariables.map((formVar) => ({
         ...formVar,
         id: encodeIdToUUID(formVar.id),
-        formid: encodeIdToUUID(formVar.formId),
+        formId: encodeIdToUUID(formVar.formId),
       })),
       logics: formLogics.map((logic) => ({
         ...logic,
@@ -101,7 +149,7 @@ export class FormService {
         navigatefieldid: logic.navigateFieldId
           ? encodeIdToUUID(logic.navigateFieldId)
           : null,
-        formid: encodeIdToUUID(logic.formId),
+        formId: encodeIdToUUID(logic.formId),
       })),
     };
   }
@@ -322,6 +370,29 @@ export class FormService {
     return encodeIdToUUID(insertedFieldId[0].fieldId);
   }
 
+  static async updateField(
+    userId: string | number,
+    formId: string | number,
+    fieldId: string | number,
+    updates: FormField
+  ) {
+    // UserID, FieldId and FormId Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+    if (typeof fieldId === "string") fieldId = decodeUUIDToId(fieldId);
+
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Check whether the fieldId belongs to the respective form
+    await this.isFieldBelongsToForm(formId, fieldId);
+
+    await db
+      .update(FormFieldModel)
+      .set(updates)
+      .where(eq(FormFieldModel.id, fieldId));
+  }
+
   static async deleteField(
     userId: string | number,
     formId: string | number,
@@ -334,6 +405,9 @@ export class FormService {
 
     // Check whether the formid belongs to the repective user
     await this.isFormAccessible(userId, formId);
+
+    // Check whether the fieldId belongs to the respective form
+    await this.isFieldBelongsToForm(formId, fieldId);
 
     // Delete the Form Field
     const deletedField = await db
@@ -355,37 +429,166 @@ export class FormService {
     return encodeIdToUUID(deletedField[0].id);
   }
 
-  static async updateField(
+  static async createFormVariable(
     userId: string | number,
     formId: string | number,
-    fieldId: string | number,
-    updates: FormField
+    data: { name: string; kind: "STRING" | "NUMBER"; value: string }
   ) {
-    // UserID, FieldId and FormId Preprocessing
+    // UserID and FormId Preprocessing
     if (typeof userId === "string") userId = decodeUUIDToId(userId);
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
-    if (typeof fieldId === "string") fieldId = decodeUUIDToId(fieldId);
 
     // Check whether the formid belongs to the repective user
     await this.isFormAccessible(userId, formId);
 
-    const field = await db
-      .select()
-      .from(FormFieldModel)
-      .where(eq(FormFieldModel.id, fieldId));
+    const formVariable = await db
+      .insert(FormVariableModel)
+      .values({ ...data, formId: formId })
+      .returning();
 
-    if (field.length === 0)
-      throw new HTTPException(404, { message: "The field does not exist" });
+    return formVariable.map((variable) => ({
+      ...variable,
+      id: encodeIdToUUID(variable.id),
+    }))[0];
+  }
 
-    if (field[0].formId !== formId)
-      throw new HTTPException(401, {
-        message: "This field does not belong to this form",
-      });
+  static async updateFormVariable(
+    userId: string | number,
+    formId: string | number,
+    variableId: string | number,
+    updates: { name?: string; kind?: "STRING" | "NUMBER"; value?: string }
+  ) {
+    // UserID, VariableId and FormId Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+    if (typeof variableId === "string") variableId = decodeUUIDToId(variableId);
 
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Check whether the variableid belongs to the respective form or not
+    await this.isVariableBelongsToForm(formId, variableId);
+
+    // Update the form
     await db
-      .update(FormFieldModel)
+      .update(FormVariableModel)
       .set(updates)
-      .where(eq(FormFieldModel.id, fieldId));
+      .where(eq(FormVariableModel.id, variableId));
+  }
+
+  static async deleteFormVariable(
+    userId: string | number,
+    formId: string | number,
+    variableId: string | number
+  ) {
+    // UserID, VariableId and FormId Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+    if (typeof variableId === "string") variableId = decodeUUIDToId(variableId);
+
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Check whether the variableid belongs to the respective form or not
+    await this.isVariableBelongsToForm(formId, variableId);
+
+    // Delete the variable
+    const deletedVariableId = (
+      await db
+        .delete(FormVariableModel)
+        .where(eq(FormVariableModel.id, variableId))
+        .returning({ id: FormVariableModel.id })
+    )[0].id;
+
+    return encodeIdToUUID(deletedVariableId);
+  }
+
+  static async createFormLogic(
+    userId: string | number,
+    formId: string | number,
+    data: FormLogic
+  ) {
+    // UserID and FormId Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Create Logic for the form
+    const logic = await db
+      .insert(FormLogicModel)
+      .values({
+        formId: formId,
+        ...data,
+        expected:
+          typeof data.expected === "object"
+            ? JSON.stringify(data.expected)
+            : data.expected,
+      })
+      .returning();
+
+    return logic.map((l) => ({
+      ...l,
+      id: encodeIdToUUID(l.id),
+      formId: encodeIdToUUID(l.formId),
+      fieldId: encodeIdToUUID(l.fieldId),
+      navigateFieldId: l.navigateFieldId
+        ? encodeIdToUUID(l.navigateFieldId)
+        : null,
+      variableId: l.variableId ? encodeIdToUUID(l.variableId) : null,
+    }))[0];
+  }
+
+  static async updateFormLogic(
+    userId: string | number,
+    formId: string | number,
+    logicId: string | number,
+    data: FormLogic
+  ) {
+    // ID Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+    if (typeof logicId === "string") logicId = decodeUUIDToId(logicId);
+
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Check whether the logicid belongs to the respective form
+    await this.isLogicBelongsToForm(formId, logicId);
+
+    // Update Logic
+    await db
+      .update(FormLogicModel)
+      .set({
+        formId: formId,
+        ...data,
+        expected:
+          typeof data.expected === "object"
+            ? JSON.stringify(data.expected)
+            : data.expected,
+      })
+      .where(eq(FormLogicModel.id, logicId));
+  }
+
+  static async deleteFormLogic(
+    userId: string | number,
+    formId: string | number,
+    logicId: string | number
+  ) {
+    // ID Preprocessing
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+    if (typeof logicId === "string") logicId = decodeUUIDToId(logicId);
+
+    // Check whether the formid belongs to the repective user
+    await this.isFormAccessible(userId, formId);
+
+    // Check whether the logicid belongs to the respective form
+    await this.isLogicBelongsToForm(formId, logicId);
+
+    // Delete Logic
+    await db.delete(FormLogicModel).where(eq(FormLogicModel.id, logicId));
   }
 
   static async findAllInTrash(userId: string) {}

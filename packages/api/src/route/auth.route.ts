@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { UserService } from "../service/user.service";
 import { encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
@@ -9,28 +8,12 @@ import { gravatar } from "../utils";
 import MailService from "../service/mail.service";
 import { AuthService } from "../service/auth.service";
 import { zValidator } from "@hono/zod-validator";
-
-// Zod Validation
-const signUpBodySchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
-const loginBodySchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
-const sendResetPasswordEmailBodySchema = z.object({
-  email: z.string().min(1).email("Not a valid email address"),
-});
-
-const resetPasswordBodySchema = z.object({
-  email: z.string().min(1).email("Not a valid email address"),
-  code: z.string().min(6).max(6),
-  password: z.string().min(8),
-});
+import {
+  loginBodySchema,
+  sendResetPasswordEmailBodySchema,
+  signUpBodySchema,
+  resetPasswordBodySchema,
+} from "./schema/auth.schema";
 
 // Auth Routes
 const router = new Hono().basePath("auth");
