@@ -6,6 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import { decodeUUIDToId } from "@form/utils";
 import {
   createFormBodySchema,
+  updateFormBodySchema,
   createFormFieldBodySchema,
   createFormVariableBodySchema,
   updateFormFieldBodySchema,
@@ -16,6 +17,24 @@ import {
 } from "./schema/form.schema";
 
 const router = new Hono().basePath("form");
+
+router.get(":formId", authMiddleware, async (c) => {
+  const formId: string = c.req.param("formId");
+
+  const user: Record<string, any> = c.get("user" as never);
+
+  const result = await FormService.findById(user.id, formId);
+
+  return c.json(result);
+});
+
+router.get("/", authMiddleware, async (c) => {
+  const user: Record<string, any> = c.get("user" as never);
+
+  const result = await FormService.findAll(user.id);
+
+  return c.json(result);
+});
 
 router.post(
   "/",
@@ -35,15 +54,22 @@ router.post(
   }
 );
 
-router.get(":formId", authMiddleware, async (c) => {
-  const formId: string = c.req.param("formId");
+router.put(
+  ":formId",
+  authMiddleware,
+  zValidator("json", updateFormBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const user: Record<string, any> = c.get("user" as never);
+    const formId: string = c.req.param("formId");
 
-  const result = await FormService.findById(user.id, formId);
+    const input = c.req.valid("json");
 
-  return c.json(result);
-});
+    await FormService.update(user.id, formId, input);
+
+    return c.json({ success: true });
+  }
+);
 
 router.delete(":formId", authMiddleware, async (c) => {
   const user: Record<string, any> = c.get("user" as never);
@@ -109,21 +135,6 @@ router.post(
   }
 );
 
-router.delete(":formId/form-field/:fieldId", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
-
-  const formId = c.req.param("formId");
-  const fieldId = c.req.param("fieldId");
-
-  const deletedFieldId = await FormService.deleteField(
-    user.id,
-    formId,
-    fieldId
-  );
-
-  return c.json({ success: true, fieldId: deletedFieldId });
-});
-
 router.put(
   ":formId/form-field/:fieldId",
   authMiddleware,
@@ -141,6 +152,21 @@ router.put(
     return c.json({ success: true });
   }
 );
+
+router.delete(":formId/form-field/:fieldId", authMiddleware, async (c) => {
+  const user: Record<string, any> = c.get("user" as never);
+
+  const formId = c.req.param("formId");
+  const fieldId = c.req.param("fieldId");
+
+  const deletedFieldId = await FormService.deleteField(
+    user.id,
+    formId,
+    fieldId
+  );
+
+  return c.json({ success: true, fieldId: deletedFieldId });
+});
 
 router.post(
   ":formId/form-variable",

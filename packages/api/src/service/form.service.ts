@@ -1,13 +1,9 @@
 import {
-  ActionEnum,
-  CalculateEnum,
-  ComparisonEnum,
   FieldKindEnum,
   FontSizeEnum,
   FormField,
   FormLogic,
   FormStatusEnum,
-  Property,
 } from "@form/shared-type-enums";
 import { db } from "../config";
 import {
@@ -18,10 +14,11 @@ import {
   FormVariableModel,
   FormLogicModel,
 } from "../model";
-import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
+import { decodeUUIDToId, encodeIdToUUID, helper, timestamp } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { FormTheme, FormSetting } from "@form/shared-type-enums";
+import { decode } from "punycode";
 
 export class FormService {
   private static async isFormAccessible(userId: number, formId: number) {
@@ -154,6 +151,41 @@ export class FormService {
     };
   }
 
+  static async findAll(userId: string | number) {
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+
+    const normalForm = await db
+      .select()
+      .from(FormModel)
+      .where(
+        and(
+          eq(FormModel.userId, userId),
+          eq(FormModel.status, FormStatusEnum.NORMAL.toString())
+        )
+      );
+
+    const trashForm = await db
+      .select()
+      .from(FormModel)
+      .where(
+        and(
+          eq(FormModel.userId, userId),
+          eq(FormModel.status, FormStatusEnum.TRASH.toString())
+        )
+      );
+
+    return {
+      normal: normalForm.map((form) => ({
+        ...form,
+        id: encodeIdToUUID(form.id),
+      })),
+      trash: trashForm.map((form) => ({
+        ...form,
+        id: encodeIdToUUID(form.id),
+      })),
+    };
+  }
+
   static async create(userId: string | number, formName: string) {
     if (typeof userId === "string") userId = decodeUUIDToId(userId);
 
@@ -215,6 +247,34 @@ export class FormService {
     });
 
     return encodeIdToUUID(newForm[0].id);
+  }
+
+  static async update(
+    userId: string | number,
+    formId: string | number,
+    updates: { name?: string; status?: FormStatusEnum; avatar?: string }
+  ) {
+    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (typeof formId === "string") formId = decodeUUIDToId(formId);
+
+    await this.isFormAccessible(userId, formId);
+
+    let updateConfig: Record<string, any> = {};
+
+    if (updates.name) updateConfig.name = updates.name;
+    if (updates.avatar) updateConfig.avatar = updates.avatar;
+    if (updates.status) {
+      updateConfig.status = updates.status.toString();
+      if (updates.status === FormStatusEnum.TRASH) {
+        updateConfig.retentionAt = timestamp();
+      } else {
+        updateConfig.retentionAt = 0;
+      }
+    }
+    await db
+      .update(FormModel)
+      .set(updateConfig)
+      .where(eq(FormModel.id, formId));
   }
 
   static async delete(

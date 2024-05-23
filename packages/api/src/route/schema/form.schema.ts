@@ -6,10 +6,17 @@ import {
   ComparisonEnum,
   CalculateEnum,
   ActionEnum,
+  FormStatusEnum,
 } from "@form/shared-type-enums";
 
 export const createFormBodySchema = z.object({
   title: z.string().min(1),
+});
+
+export const updateFormBodySchema = z.object({
+  name: z.string().min(1).optional(),
+  status: z.nativeEnum(FormStatusEnum).optional(),
+  avatar: z.string().url().optional(),
 });
 
 export const updateFormThemeBodySchema = z.object({

@@ -5,6 +5,7 @@ export const NODE_ENV: string = process.env.NODE_ENV || "development";
 export const ROOT_PATH = process.cwd();
 
 // App
+export const APP_HOST: string = process.env.APP_HOST || "localhost";
 export const PORT: number = process.env.PORT ? +process.env.PORT : 8000;
 
 // Redis InMemory DB Service
