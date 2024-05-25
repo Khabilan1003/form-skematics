@@ -3,7 +3,7 @@ import { authMiddleware } from "../middlewares";
 import { FormService } from "../service/form.service";
 import { zValidator } from "@hono/zod-validator";
 import { HTTPException } from "hono/http-exception";
-import { decodeUUIDToId } from "@form/utils";
+import { date, decodeUUIDToId } from "@form/utils";
 import {
   createFormBodySchema,
   updateFormBodySchema,
@@ -14,7 +14,9 @@ import {
   updateFormThemeBodySchema,
   updateFormVariableBodySchema,
   formLogicBodySchema,
+  formAnalyticBodySchema,
 } from "./schema/form.schema";
+import { FormAnalyticService } from "../service/form-analytic.service";
 
 const router = new Hono().basePath("form");
 
@@ -285,5 +287,28 @@ router.delete(":formId/form-logic/:logicId", authMiddleware, async (c) => {
 
   return c.json({ success: true });
 });
+
+router.get(
+  ":formId/form-analytic",
+  authMiddleware,
+  zValidator("json", formAnalyticBodySchema),
+  async (c) => {
+    const formId = decodeUUIDToId(c.req.param("formId"));
+
+    const input = c.req.valid("json");
+
+    const endAt = date().endOf("day");
+
+    const params = {
+      formId: formId,
+      endAt: endAt.toDate(),
+      range: input.range,
+    };
+
+    const result = await FormAnalyticService.summary(params);
+
+    return c.json(result);
+  }
+);
 
 export default router;

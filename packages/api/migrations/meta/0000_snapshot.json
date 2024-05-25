@@ -1,17 +1,24 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cb4d8e62-27a0-4fd4-b892-1460b8aa506f",
+  "id": "ce6cbde8-63e6-43e5-bf48-719f91ed4c03",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "formanalytic": {
       "name": "formanalytic",
       "columns": {
-        "formId": {
-          "name": "formId",
+        "id": {
+          "name": "id",
           "type": "integer",
           "primaryKey": true,
           "notNull": true,
+          "autoincrement": true
+        },
+        "formId": {
+          "name": "formId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "totalVisits": {

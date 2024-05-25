@@ -1,18 +1,6 @@
-export enum FormKindEnum {
-  SURVEY = 1,
-  QUIZ,
-  CONTACT,
-}
-
 export enum FormStatusEnum {
   NORMAL = 1,
   TRASH,
-}
-
-export enum CaptchaKindEnum {
-  NONE = 0,
-  GOOGLE_RECAPTCHA,
-  GEETEST_CAPTCHA,
 }
 
 export enum FieldKindEnum {

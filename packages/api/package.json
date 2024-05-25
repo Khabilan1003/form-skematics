@@ -16,7 +16,6 @@
     "crypto-js": "^4.2.0",
     "disposable-email-blocklist": "^0.0.1",
     "drizzle-orm": "^0.30.10",
-    "fs-extra": "^11.2.0",
     "hono": "^4.3.6",
     "ioredis": "^5.4.1",
     "which-browser": "0.5.1",

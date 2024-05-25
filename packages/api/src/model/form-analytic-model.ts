@@ -3,9 +3,9 @@ import { sqliteTable, integer } from "drizzle-orm/sqlite-core";
 import { FormModel } from "./form.model";
 
 export const FormAnalyticModel = sqliteTable("formanalytic", {
-  formId: integer("formId")
-    .primaryKey()
-    .references(() => FormModel.id),
+  id: integer("id").primaryKey({ autoIncrement: true }),
+
+  formId: integer("formId").references(() => FormModel.id),
 
   totalVisits: integer("totalVisits", { mode: "number" }).default(0),
 

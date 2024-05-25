@@ -3,7 +3,7 @@ import { SMTP_FROM } from "../environments";
 import { helper } from "@form/utils";
 import { JobOptions } from "bull";
 import { basename } from "path";
-import { readFileSync } from "fs-extra";
+import { readFileSync } from "fs";
 import { readDirSync } from "../utils";
 import { EMAIL_TEMPLATES_DIR } from "../environments";
 

@@ -1,5 +1,6 @@
 CREATE TABLE `formanalytic` (
-	`formId` integer PRIMARY KEY NOT NULL,
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`formId` integer,
 	`totalVisits` integer DEFAULT 0,
 	`submissionCount` integer DEFAULT 0,
 	`averageTime` integer DEFAULT 0,

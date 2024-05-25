@@ -1,4 +1,4 @@
-import { readdirSync } from "fs-extra";
+import { readdirSync } from "fs";
 import { resolve } from "path";
 
 export function readDirSync(dir: string, ext: string) {

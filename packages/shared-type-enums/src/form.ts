@@ -5,7 +5,7 @@ import type {
   FieldKindEnum,
   FieldLayoutAlignEnum,
   FontSizeEnum,
-  FormKindEnum,
+  
   FormStatusEnum,
 } from "./enums/form";
 
@@ -130,9 +130,7 @@ export interface ThemeSettings {
 
 export interface FormModel {
   id: string;
-  memberId: string;
   name: string;
-  kind: FormKindEnum;
 
   settings?: FormSetting;
   themeSettings?: ThemeSettings;
@@ -141,10 +139,7 @@ export interface FormModel {
   variables?: Variable[];
   logics?: FormLogic[];
 
-  fieldUpdateAt?: number;
-  submissionCount?: number;
   retentionAt: number;
-  suspended?: boolean;
   status: FormStatusEnum;
 }
 

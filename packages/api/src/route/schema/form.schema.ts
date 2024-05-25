@@ -107,3 +107,7 @@ export const formLogicBodySchema = z.object({
   operator: z.nativeEnum(CalculateEnum).optional(),
   value: z.string().optional(),
 });
+
+export const formAnalyticBodySchema = z.object({
+  range: z.number().min(7).max(365),
+});

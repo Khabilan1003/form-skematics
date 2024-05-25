@@ -8,6 +8,7 @@ import AuthRouter from "./route/auth.route";
 import UserRouter from "./route/user.route";
 import FormRouter from "./route/form.route";
 import FileRouter from "./route/file.route";
+import SubmissionRouter from "./route/submission.route";
 
 // Initialize the Hono App
 const app = new Hono().basePath("/api/v1");
@@ -26,6 +27,7 @@ app.route("/", UserRouter);
 app.route("/", AuthRouter);
 app.route("/", FormRouter);
 app.route("/", FileRouter);
+app.route("/", SubmissionRouter);
 
 // Start Server
 export default {
