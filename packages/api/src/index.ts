@@ -10,6 +10,7 @@ import FormRouter from "./route/form.route";
 import FileRouter from "./route/file.route";
 import FormAnalticRouter from "./route/form-analytic.route";
 import SubmissionRouter from "./route/submission.route";
+import { SchedulerService } from "./service/schedule.service";
 
 // Initialize the Hono App
 const app = new Hono().basePath("/api/v1");
@@ -30,6 +31,9 @@ app.route("/", FormRouter);
 app.route("/", FileRouter);
 app.route("/", FormAnalticRouter);
 app.route("/", SubmissionRouter);
+
+// Scheduler
+SchedulerService.start();
 
 // Start Server
 export default {

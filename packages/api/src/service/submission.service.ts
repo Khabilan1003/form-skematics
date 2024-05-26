@@ -40,7 +40,7 @@ export class SubmissionService {
     if (submission.length === 0)
       throw new HTTPException(404, { message: "Submission Not Found" });
 
-    if (submission[0].formId === formId)
+    if (submission[0].formId !== formId)
       throw new HTTPException(401, {
         message: "Submission does not belong to this form",
       });
@@ -94,15 +94,29 @@ export class SubmissionService {
         )
       );
 
-    const submission = await db
-      .select()
-      .from(SubmissionModel)
-      .where(eq(SubmissionModel.id, submissionId));
+    const submission = (
+      await db
+        .select()
+        .from(SubmissionModel)
+        .where(eq(SubmissionModel.id, submissionId))
+    )[0];
+
+    {
+    }
 
     return {
       ...submission,
-      variable: submissionVariable,
-      answer: submissionAnswer,
+      id: encodeIdToUUID(submission.id),
+      formId: encodeIdToUUID(submission.formId as number),
+
+      variable: submissionVariable.map((variable) => ({
+        ...variable,
+        fieldId: encodeIdToUUID(variable.fieldId as number),
+      })),
+      answer: submissionAnswer.map((answer) => ({
+        ...answer,
+        fieldId: encodeIdToUUID(answer.fieldId as number),
+      })),
     };
   }
 
@@ -121,9 +135,11 @@ export class SubmissionService {
       .limit(limit)
       .orderBy(desc(SubmissionModel.createdAt));
 
-    const submissions = submissionIds.map(
-      async (id) => await this.findById(formId, id.id)
-    );
+    let submissions: any = [];
+    for (let i = 0; i < submissionIds.length; i++) {
+      const submission = await this.findById(formId, submissionIds[0].id);
+      submissions.push(submission);
+    }
 
     const totalSubmissions = await this.countInForm(formId);
 
@@ -337,5 +353,7 @@ export class SubmissionService {
         value: variable.value,
       });
     }
+
+    return encodeIdToUUID(submission.id);
   }
 }

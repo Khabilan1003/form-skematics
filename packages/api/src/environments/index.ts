@@ -51,3 +51,7 @@ export const BCRYPT_SALT: number = process.env.BCRYPT_SALT
 // Account Deletion
 export const ACCOUNT_DELETION_SCHEDULE_INTERVAL: string =
   process.env.ACCOUNT_DELETION_SCHEDULE_INTERVAL || "2d";
+
+// Form Trash Limit
+export const FORM_TRASH_INTERVAL: string =
+  process.env.FORM_TRASH_INTERVAL || "30d";

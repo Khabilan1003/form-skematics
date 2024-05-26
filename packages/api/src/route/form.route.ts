@@ -77,7 +77,7 @@ router.delete(":formId", authMiddleware, async (c) => {
 
   const formId: string = c.req.param("formId");
 
-  const ids = await FormService.delete(user.id, formId);
+  const ids = await FormService.delete(user.id, formId, false);
 
   if (ids.length === 0)
     throw new HTTPException(404, { message: "Form is not found" });

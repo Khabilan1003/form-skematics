@@ -14,11 +14,18 @@ import {
   FormVariableModel,
   FormLogicModel,
 } from "../model";
-import { decodeUUIDToId, encodeIdToUUID, helper, timestamp } from "@form/utils";
+import {
+  decodeUUIDToId,
+  encodeIdToUUID,
+  helper,
+  hs,
+  timestamp,
+} from "@form/utils";
 import { HTTPException } from "hono/http-exception";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { FormTheme, FormSetting } from "@form/shared-type-enums";
 import { decode } from "punycode";
+import { FORM_TRASH_INTERVAL } from "../environments";
 
 export class FormService {
   private static async isFormAccessible(userId: number, formId: number) {
@@ -266,7 +273,7 @@ export class FormService {
     if (updates.status) {
       updateConfig.status = updates.status.toString();
       if (updates.status === FormStatusEnum.TRASH) {
-        updateConfig.retentionAt = timestamp();
+        updateConfig.retentionAt = timestamp() + hs(FORM_TRASH_INTERVAL)!;
       } else {
         updateConfig.retentionAt = 0;
       }
@@ -279,10 +286,12 @@ export class FormService {
 
   static async delete(
     userId: string | number,
-    formId: string | string[] | number | number[]
+    formId: string | string[] | number | number[],
+    isScheduler: boolean
   ): Promise<string[]> {
     // UserId Preprocessing
-    if (typeof userId === "string") userId = decodeUUIDToId(userId);
+    if (!isScheduler && typeof userId === "string")
+      userId = decodeUUIDToId(userId);
 
     // FormId Preprocessing
     if (typeof formId === "object") {
@@ -303,7 +312,7 @@ export class FormService {
       .where(inArray(FormModel.id, formId as number[]));
 
     for (let i = 0; i < forms.length; i++)
-      if (forms[i].userId !== userId)
+      if (!isScheduler && forms[i].userId !== userId)
         throw new HTTPException(401, {
           message: "Unauthorized access of other users form",
         });
@@ -651,5 +660,18 @@ export class FormService {
     await db.delete(FormLogicModel).where(eq(FormLogicModel.id, logicId));
   }
 
-  static async findAllInTrash(userId: string) {}
+  static async findAllInTrash() {
+    const forms = await db
+      .select()
+      .from(FormModel)
+      .where(
+        and(
+          eq(FormModel.status, FormStatusEnum.TRASH.toString()),
+          gt(FormModel.retentionAt, 0),
+          lte(FormModel.retentionAt, timestamp())
+        )
+      );
+
+    return forms;
+  }
 }
