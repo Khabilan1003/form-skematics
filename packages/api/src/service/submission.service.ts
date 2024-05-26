@@ -6,7 +6,7 @@ import {
   SubmissionFieldModel,
   SubmissionModel,
 } from "../model";
-import { decodeUUIDToId, helper } from "@form/utils";
+import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
 import { start } from "repl";
 import { FieldKindEnum } from "@form/shared-type-enums";
@@ -121,7 +121,17 @@ export class SubmissionService {
       .limit(limit)
       .orderBy(desc(SubmissionModel.createdAt));
 
-    return submissionIds.map(async (id) => await this.findById(formId, id.id));
+    const submissions = submissionIds.map(
+      async (id) => await this.findById(formId, id.id)
+    );
+
+    const totalSubmissions = await this.countInForm(formId);
+
+    return {
+      formId: encodeIdToUUID(formId),
+      totalSubmissions,
+      submissions,
+    };
   }
 
   public static async countAllWithFieldId(

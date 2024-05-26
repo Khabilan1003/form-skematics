@@ -6,8 +6,21 @@ import {
   deleteSubmissionsBodySchema,
 } from "./schema/submission.schema";
 import { SubmissionService } from "../service/submission.service";
+import { FormService } from "../service/form.service";
 
 const router = new Hono().basePath("submission");
+
+router.get("/:formId", authMiddleware, async (c) => {
+  const user: Record<string, any> = c.get("user" as never);
+
+  const formId = c.req.param("formId");
+
+  await FormService.findById(user.id, formId);
+
+  const submissions = await SubmissionService.findAll({ formId });
+
+  return c.json(submissions);
+});
 
 router.post(
   "/",

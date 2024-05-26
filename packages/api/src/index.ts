@@ -8,6 +8,7 @@ import AuthRouter from "./route/auth.route";
 import UserRouter from "./route/user.route";
 import FormRouter from "./route/form.route";
 import FileRouter from "./route/file.route";
+import FormAnalticRouter from "./route/form-analytic.route";
 import SubmissionRouter from "./route/submission.route";
 
 // Initialize the Hono App
@@ -27,6 +28,7 @@ app.route("/", UserRouter);
 app.route("/", AuthRouter);
 app.route("/", FormRouter);
 app.route("/", FileRouter);
+app.route("/", FormAnalticRouter);
 app.route("/", SubmissionRouter);
 
 // Start Server

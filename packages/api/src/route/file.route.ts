@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { BodyData } from "hono/utils/body";
 import { HTTPException } from "hono/http-exception";
 import { authMiddleware } from "../middlewares";
-import { commonImageMimeTypes, nanoid } from "@form/utils";
+import { commonImageMimeTypes } from "@form/utils";
 import { APP_HOST, PORT } from "../environments";
 import { FileService } from "../service/file.service";
 
