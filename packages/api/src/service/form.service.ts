@@ -28,7 +28,7 @@ import { decode } from "punycode";
 import { FORM_TRASH_INTERVAL } from "../environments";
 
 export class FormService {
-  private static async isFormAccessible(userId: number, formId: number) {
+  public static async isFormAccessible(userId: number, formId: number) {
     // Check whether the formid belongs to the repective user
     const form = await db
       .select()
@@ -88,12 +88,8 @@ export class FormService {
       });
   }
 
-  static async findById(userid: string | number, formid: string | number) {
+  static async findById(formid: string | number) {
     if (typeof formid === "string") formid = decodeUUIDToId(formid);
-    if (typeof userid === "string") userid = decodeUUIDToId(userid);
-
-    // Check whether the user have access to this formId
-    await this.isFormAccessible(userid, formid);
 
     const form = await db
       .select()

@@ -46,7 +46,7 @@ export class FormAnalyticService {
       .limit(range)
       .orderBy(desc(FormAnalyticModel.createdAt));
   }
-
+  
   public static async updateTotalVisits(formId: string | number) {
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 

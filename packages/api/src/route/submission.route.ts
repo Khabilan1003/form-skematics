@@ -7,6 +7,7 @@ import {
 } from "./schema/submission.schema";
 import { SubmissionService } from "../service/submission.service";
 import { FormService } from "../service/form.service";
+import { decodeUUIDToId } from "@form/utils";
 
 const router = new Hono().basePath("submission");
 
@@ -15,7 +16,10 @@ router.get("/:formId", authMiddleware, async (c) => {
 
   const formId = c.req.param("formId");
 
-  await FormService.findById(user.id, formId);
+  await FormService.isFormAccessible(
+    decodeUUIDToId(user.id),
+    decodeUUIDToId(formId)
+  );
 
   const submissions = await SubmissionService.findAll({ formId });
 

@@ -15,7 +15,6 @@ import {
   updateFormVariableBodySchema,
   formLogicBodySchema,
 } from "./schema/form.schema";
-import { FormAnalyticService } from "../service/form-analytic.service";
 
 const router = new Hono().basePath("form");
 
@@ -24,7 +23,12 @@ router.get(":formId", authMiddleware, async (c) => {
 
   const user: Record<string, any> = c.get("user" as never);
 
-  const result = await FormService.findById(user.id, formId);
+  await FormService.isFormAccessible(
+    decodeUUIDToId(user.id),
+    decodeUUIDToId(formId)
+  );
+
+  const result = await FormService.findById(formId);
 
   return c.json(result);
 });

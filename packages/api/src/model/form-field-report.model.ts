@@ -5,11 +5,13 @@ import { FormFieldModel } from "./form-field.model";
 export const FormFieldReportModel = sqliteTable("formfieldreport", {
   fieldId: integer("fieldId")
     .primaryKey()
-    .references(() => FormFieldModel.id),
+    .references(() => FormFieldModel.id, { onDelete: "cascade" }),
 
-  count: integer("count", { mode: "number" }).default(0),
+  total: integer("total", { mode: "number" }),
 
-  average: integer("average", { mode: "number" }).default(0),
+  count: integer("count", { mode: "number" }),
+
+  average: integer("average", { mode: "number" }),
 
   chooses: text("chooses", { mode: "json" }).$type<any[]>(),
 

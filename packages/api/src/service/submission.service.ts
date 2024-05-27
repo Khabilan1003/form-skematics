@@ -9,12 +9,34 @@ import {
 import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
 import { start } from "repl";
-import { FieldKindEnum } from "@form/shared-type-enums";
+import { FieldKindEnum, Property } from "@form/shared-type-enums";
 
 interface FindSubmissionOptions {
   formId: string | number;
   page?: number;
   limit?: number;
+}
+
+interface SubmissionType {
+  formId: string;
+  id: string;
+  startAt: number;
+  endAt: number;
+  createdAt: number | null;
+  updatedAt: number | null;
+  ip: string;
+  variable: {
+    fieldId: string;
+    name: string | null;
+    kind: "NUMBER" | "STRING" | null;
+    value: any | any[];
+  }[];
+  answer: {
+    fieldId: string;
+    kind: string | null;
+    property: Property | null;
+    value: any | any[];
+  }[];
 }
 
 interface Submission {
@@ -135,9 +157,10 @@ export class SubmissionService {
       .limit(limit)
       .orderBy(desc(SubmissionModel.createdAt));
 
-    let submissions: any = [];
+    let submissions: SubmissionType[] = [];
+
     for (let i = 0; i < submissionIds.length; i++) {
-      const submission = await this.findById(formId, submissionIds[0].id);
+      const submission = await this.findById(formId, submissionIds[i].id);
       submissions.push(submission);
     }
 
@@ -217,37 +240,36 @@ export class SubmissionService {
     if (typeof fieldIds[0] === "string")
       fieldIds = fieldIds.map((fieldId) => decodeUUIDToId(fieldId as string));
 
-    const submissions = await db
-      .select({
-        id: SubmissionModel.id,
-        startAt: SubmissionModel.startAt,
-        endAt: SubmissionModel.endAt,
-      })
-      .from(SubmissionModel)
-      .where(eq(SubmissionModel.formId, formId))
-      .limit(limit * fieldIds.length)
-      .orderBy(desc(SubmissionModel.endAt));
-
-    return submissions.map(async (submission) => {
-      return {
-        id: submission.id,
-        startAt: submission.startAt,
-        endAt: submission.endAt,
-        answers: await db
+    const data = await Promise.all(
+      fieldIds.map(async (fieldId) => {
+        const answers = await db
           .select({
-            fieldId: SubmissionFieldModel.fieldId,
-            kind: SubmissionFieldModel.kind,
+            submissionId: SubmissionFieldModel.submissionId,
+            kind: FormFieldModel.kind,
             value: SubmissionFieldModel.value,
+            endAt: SubmissionModel.endAt,
           })
           .from(SubmissionFieldModel)
-          .where(
-            and(
-              eq(SubmissionFieldModel.submissionId, submission.id),
-              inArray(SubmissionFieldModel.fieldId, fieldIds as number[])
-            )
-          ),
-      };
-    });
+          .innerJoin(
+            SubmissionModel,
+            eq(SubmissionModel.id, SubmissionFieldModel.submissionId)
+          )
+          .innerJoin(
+            FormFieldModel,
+            eq(FormFieldModel.id, SubmissionFieldModel.fieldId)
+          )
+          .where(eq(SubmissionFieldModel.fieldId, fieldId as number))
+          .limit(limit)
+          .orderBy(desc(SubmissionModel.endAt));
+
+        return {
+          fieldId: encodeIdToUUID(fieldId as number),
+          answers,
+        };
+      })
+    );
+
+    return data;
   }
 
   public static async countInForm(formId: string | number): Promise<number> {

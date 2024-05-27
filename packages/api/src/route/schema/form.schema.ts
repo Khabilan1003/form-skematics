@@ -66,11 +66,13 @@ export const updateFormFieldBodySchema = z.object({
       allowOther: z.boolean().optional(),
       allowMultiple: z.boolean().optional(),
       choices: z
-        .object({
-          id: z.number().optional(),
-          label: z.string().optional(),
-          image: z.string().optional(),
-        })
+        .array(
+          z.object({
+            id: z.number().optional(),
+            label: z.string().optional(),
+            image: z.string().optional(),
+          })
+        )
         .optional(),
       randomize: z.boolean().optional(),
       shape: z.string().optional(),
