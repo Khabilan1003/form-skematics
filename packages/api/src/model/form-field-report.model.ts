@@ -13,7 +13,9 @@ export const FormFieldReportModel = sqliteTable("formfieldreport", {
 
   average: integer("average", { mode: "number" }),
 
-  chooses: text("chooses", { mode: "json" }).$type<any[]>(),
+  chooses: text("chooses", { mode: "json" }).$type<
+    { id: number; label: string }[] | number[]
+  >(),
 
   createdAt: integer("createdAt", { mode: "number" }).default(
     sql`(strftime('%s', 'now'))`

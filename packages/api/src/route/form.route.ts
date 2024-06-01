@@ -3,30 +3,28 @@ import { authMiddleware } from "../middlewares";
 import { FormService } from "../service/form.service";
 import { zValidator } from "@hono/zod-validator";
 import { HTTPException } from "hono/http-exception";
-import { date, decodeUUIDToId } from "@form/utils";
+import { decodeUUIDToId } from "@form/utils";
 import {
   createFormBodySchema,
   updateFormBodySchema,
   createFormFieldBodySchema,
-  createFormVariableBodySchema,
   updateFormFieldBodySchema,
   updateFormSettingBodySchema,
-  updateFormThemeBodySchema,
-  updateFormVariableBodySchema,
-  formLogicBodySchema,
+  updateFieldGroupBodySchema,
+  deleteFormFieldBodySchema,
 } from "./schema/form.schema";
+import { FieldKindEnum } from "@form/shared-type-enums";
+import { removeNestedNullUndefined } from "../utils";
 
 const router = new Hono().basePath("form");
 
 router.get(":formId", authMiddleware, async (c) => {
-  const formId: string = c.req.param("formId");
-
   const user: Record<string, any> = c.get("user" as never);
 
-  await FormService.isFormAccessible(
-    decodeUUIDToId(user.id),
-    decodeUUIDToId(formId)
-  );
+  const formId: number = decodeUUIDToId(c.req.param("formId"));
+  const userId: number = decodeUUIDToId(user.id);
+
+  await FormService.isFormAccessible(userId, formId);
 
   const result = await FormService.findById(formId);
 
@@ -51,6 +49,12 @@ router.post(
     const input = c.req.valid("json");
 
     const formId = await FormService.create(user.id, input.title);
+
+    // Create Field Group
+    const fieldGroupId = await FormService.createGroup(formId);
+
+    // Inside this group add SHORT_TEXT field
+    await FormService.createField(fieldGroupId, FieldKindEnum.SHORT_TEXT);
 
     return c.json({
       success: true,
@@ -80,44 +84,89 @@ router.delete(":formId", authMiddleware, async (c) => {
   const user: Record<string, any> = c.get("user" as never);
 
   const formId: string = c.req.param("formId");
+  const userId: string = user.id;
 
-  const ids = await FormService.delete(user.id, formId, false);
+  const ids = await FormService.delete(userId, formId, false);
 
   if (ids.length === 0)
     throw new HTTPException(404, { message: "Form is not found" });
 
-  return c.json({ success: true, formId: ids[0] });
+  return c.json({ success: true, formId: ids });
 });
-
-router.put(
-  ":formId/theme",
-  authMiddleware,
-  zValidator("json", updateFormThemeBodySchema),
-  async (c) => {
-    const formId: string = c.req.param("formId");
-
-    const user: Record<string, any> = c.get("user" as never);
-
-    const input = c.req.valid("json");
-
-    await FormService.updateFormThemeSetting(user.id, formId, input);
-
-    return c.json({ success: true });
-  }
-);
 
 router.put(
   ":formId/setting",
   authMiddleware,
   zValidator("json", updateFormSettingBodySchema),
   async (c) => {
-    const formId: string = c.req.param("formId");
-
     const user: Record<string, any> = c.get("user" as never);
+
+    const formId: string = c.req.param("formId");
+    const userId: string = user.id;
 
     const input = c.req.valid("json");
 
-    await FormService.updateFormSetting(user.id, formId, input);
+    await FormService.updateFormSetting(userId, formId, input);
+
+    return c.json({ success: true });
+  }
+);
+
+router.post(":formId/form-field-group", authMiddleware, async (c) => {
+  const user: Record<string, any> = c.get("user" as never);
+
+  const userId: number = decodeUUIDToId(user.id);
+  const formId: number = decodeUUIDToId(c.req.param("formId"));
+
+  await FormService.isFormAccessible(userId, formId);
+
+  const fieldGroupId = await FormService.createGroup(formId);
+
+  return c.json({ success: true, fieldGroupId });
+});
+
+router.put(
+  ":formId/form-field-group/:fieldGroupId",
+  authMiddleware,
+  zValidator("json", updateFieldGroupBodySchema),
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const userId: number = decodeUUIDToId(user.id);
+    const formId: number = decodeUUIDToId(c.req.param("formId"));
+    const fieldGroupId: number = decodeUUIDToId(c.req.param("fieldGroupId"));
+
+    const updates = c.req.valid("json");
+
+    await FormService.isFormAccessible(userId, formId);
+    await FormService.isGroupAccessibe(formId, fieldGroupId);
+
+    const isUpdated = await FormService.updateGroup(fieldGroupId, updates);
+
+    if (!isUpdated)
+      throw new HTTPException(404, { message: "Field group not found" });
+
+    return c.json({ success: true });
+  }
+);
+
+router.delete(
+  ":formId/form-field-group/:fieldGroupId",
+  authMiddleware,
+  async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
+
+    const userId: number = decodeUUIDToId(user.id);
+    const formId: number = decodeUUIDToId(c.req.param("formId"));
+    const fieldGroupId: number = decodeUUIDToId(c.req.param("fieldGroupId"));
+
+    await FormService.isFormAccessible(userId, formId);
+    await FormService.isGroupAccessibe(formId, fieldGroupId);
+
+    const isDeleted = await FormService.deleteGroup(fieldGroupId);
+
+    if (!isDeleted)
+      throw new HTTPException(404, { message: "Field group not found" });
 
     return c.json({ success: true });
   }
@@ -129,12 +178,16 @@ router.post(
   zValidator("json", createFormFieldBodySchema),
   async (c) => {
     const user: Record<string, any> = c.get("user" as never);
-
-    const formId = c.req.param("formId");
-
     const input = c.req.valid("json");
 
-    const fieldId = await FormService.createField(user.id, formId, input.kind);
+    const formId: number = decodeUUIDToId(c.req.param("formId"));
+    const userId: number = decodeUUIDToId(user.id);
+    const fieldGroupId: number = decodeUUIDToId(input.fieldGroupId);
+
+    await FormService.isFormAccessible(userId, formId);
+    await FormService.isGroupAccessibe(formId, fieldGroupId);
+
+    const fieldId = await FormService.createField(fieldGroupId, input.kind);
 
     return c.json({ success: true, fieldId: fieldId });
   }
@@ -147,148 +200,49 @@ router.put(
   async (c) => {
     const user: Record<string, any> = c.get("user" as never);
 
-    const formId = c.req.param("formId");
-    const fieldId = c.req.param("fieldId");
-
-    const updates = c.req.valid("json");
-
-    await FormService.updateField(user.id, formId, fieldId, updates);
-
-    return c.json({ success: true });
-  }
-);
-
-router.delete(":formId/form-field/:fieldId", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
-
-  const formId = c.req.param("formId");
-  const fieldId = c.req.param("fieldId");
-
-  const deletedFieldId = await FormService.deleteField(
-    user.id,
-    formId,
-    fieldId
-  );
-
-  return c.json({ success: true, fieldId: deletedFieldId });
-});
-
-router.post(
-  ":formId/form-variable",
-  authMiddleware,
-  zValidator("json", createFormVariableBodySchema),
-  async (c) => {
-    const user: Record<string, any> = c.get("user" as never);
-
-    const formId = c.req.param("formId");
+    const userId: number = decodeUUIDToId(user.id);
+    const formId: number = decodeUUIDToId(c.req.param("formId"));
+    const fieldId: number = decodeUUIDToId(c.req.param("fieldId"));
 
     const input = c.req.valid("json");
+    let updates = {
+      ...input,
+      fieldGroupId: input.fieldGroupId
+        ? decodeUUIDToId(input.fieldGroupId)
+        : undefined,
+    };
+    removeNestedNullUndefined(updates);
 
-    const fieldVariable = await FormService.createFormVariable(
-      user.id,
-      formId,
-      input
-    );
-
-    return c.json(fieldVariable);
-  }
-);
-
-router.put(
-  ":formId/form-variable/:variableId",
-  authMiddleware,
-  zValidator("json", updateFormVariableBodySchema),
-  async (c) => {
-    const user: Record<string, any> = c.get("user" as never);
-
-    const formId = c.req.param("formId");
-    const variableId = c.req.param("variableId");
-
-    const input = c.req.valid("json");
-
-    await FormService.updateFormVariable(user.id, formId, variableId, input);
-
+    await FormService.isFormAccessible(userId, formId);
+    await FormService.updateField(fieldId, updates);
     return c.json({ success: true });
   }
 );
 
 router.delete(
-  ":formId/form-variable/:variableId",
+  ":formId/form-field/:fieldId",
   authMiddleware,
+  zValidator("json", deleteFormFieldBodySchema),
   async (c) => {
     const user: Record<string, any> = c.get("user" as never);
+    const input = c.req.valid("json");
 
-    const formId = c.req.param("formId");
-    const variableId = c.req.param("variableId");
+    const userId = decodeUUIDToId(user.id);
+    const formId = decodeUUIDToId(c.req.param("formId"));
+    const fieldId = decodeUUIDToId(c.req.param("fieldId"));
+    const fieldGroupId = decodeUUIDToId(input.fieldGroupId);
 
-    await FormService.deleteFormVariable(user.id, formId, variableId);
+    await FormService.isFormAccessible(userId, formId);
+    await FormService.isGroupAccessibe(formId, fieldGroupId);
+    await FormService.isFieldAccessible(fieldGroupId, fieldId);
+
+    const isDeleted = await FormService.deleteField(fieldId);
+
+    if (!isDeleted)
+      throw new HTTPException(404, { message: "Field Not Deleted" });
 
     return c.json({ success: true });
   }
 );
-
-router.post(
-  ":formId/form-logic",
-  authMiddleware,
-  zValidator("json", formLogicBodySchema),
-  async (c) => {
-    const user: Record<string, any> = c.get("user" as never);
-
-    const formId = c.req.param("formId");
-
-    const input = c.req.valid("json");
-
-    const fieldLogic = await FormService.createFormLogic(user.id, formId, {
-      ...input,
-      fieldId: decodeUUIDToId(input.fieldId),
-      navigateFieldId: input.navigateFieldId
-        ? decodeUUIDToId(input.navigateFieldId)
-        : undefined,
-      variableId: input.variableId
-        ? decodeUUIDToId(input.variableId)
-        : undefined,
-    });
-
-    return c.json(fieldLogic);
-  }
-);
-
-router.put(
-  ":formId/form-logic/:logicId",
-  authMiddleware,
-  zValidator("json", formLogicBodySchema),
-  async (c) => {
-    const user: Record<string, any> = c.get("user" as never);
-
-    const formId = c.req.param("formId");
-    const logicId = c.req.param("logicId");
-
-    const input = c.req.valid("json");
-
-    await FormService.updateFormLogic(user.id, formId, logicId, {
-      ...input,
-      fieldId: decodeUUIDToId(input.fieldId),
-      navigateFieldId: input.navigateFieldId
-        ? decodeUUIDToId(input.navigateFieldId)
-        : undefined,
-      variableId: input.variableId
-        ? decodeUUIDToId(input.variableId)
-        : undefined,
-    });
-
-    return c.json({ success: true });
-  }
-);
-
-router.delete(":formId/form-logic/:logicId", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
-
-  const formId = c.req.param("formId");
-  const logicId = c.req.param("logicId");
-
-  await FormService.deleteFormLogic(user.id, formId, logicId);
-
-  return c.json({ success: true });
-});
 
 export default router;

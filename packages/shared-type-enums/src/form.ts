@@ -1,13 +1,4 @@
-import type {
-  ActionEnum,
-  CalculateEnum,
-  ComparisonEnum,
-  FieldKindEnum,
-  FieldLayoutAlignEnum,
-  FontSizeEnum,
-  
-  FormStatusEnum,
-} from "./enums/form";
+import type { FieldKindEnum, FormStatusEnum } from "./enums/form";
 
 export interface FormSetting {
   allowArchive?: boolean;
@@ -33,9 +24,8 @@ export interface FormSetting {
 }
 
 export interface Choice {
-  id: string;
+  id: number;
   label: string;
-  image?: string;
 }
 
 export interface Column {
@@ -44,28 +34,7 @@ export interface Column {
   type?: string;
 }
 
-export interface Layout {
-  mediaType?: "image" | "video";
-  mediaUrl?: string;
-  backgroundColor?: string;
-  brightness?: number;
-  align?: FieldLayoutAlignEnum;
-}
-
-export interface NumberPrice {
-  type: "number";
-  value: number;
-}
-
-export interface VariablePrice {
-  type: "variable";
-  ref: string;
-}
-
 export interface Property {
-  // Statement
-  buttonText?: string;
-
   // Choice
   allowOther?: boolean;
   allowMultiple?: boolean;
@@ -85,9 +54,16 @@ export interface Property {
   defaultCountryCode?: string;
 
   // Date
-  dateFormat?: string;
   allowTime?: boolean;
 }
+
+export type SubmissionFieldValue =
+  | string // This type is for SHORT_TEXT, LONG_TEXT, EMAIL, URL, YES_NO, DATE, COUNTRY
+  | number // This type is for NUMBER, RATING, OPINION_SCALE.
+  | number[] // This type is for multiple choice ids , 0 - other , remaining ids will be greater than 1
+  | { filename: string; size: number; url: string } // This type is for FILE_UPLOAD
+  | { countryCode: string; phoneNumber: string } // This type is for PHONE_NUMBER
+  | { startDate: number; endDate: number }; // This type is for DATE_RANGE
 
 export interface Validation {
   required?: boolean;
@@ -97,35 +73,13 @@ export interface Validation {
 }
 
 export interface FormField {
-  position?: number;
+  fieldGroupId?: number;
   title?: string;
   description?: string;
+  position?: number;
   kind?: FieldKindEnum;
   required?: boolean;
-  layoutMediaType?: "IMAGE" | "VIDEO";
-  layoutMediaUrl?: string;
-  layoutBrightness?: number;
-  layoutAlign?: FieldLayoutAlignEnum;
   properties?: Property;
-}
-
-export interface FormTheme {
-  fontFamily?: string;
-
-  screenFontSize?: FontSizeEnum;
-  fieldFontSize?: FontSizeEnum;
-
-  questionTextColor?: string;
-  answerTextColor?: string;
-  buttonTextColor?: string;
-
-  buttonBackgroundColor?: string;
-  backgroundColor?: string;
-}
-
-export interface ThemeSettings {
-  themeId?: string;
-  theme?: FormTheme;
 }
 
 export interface FormModel {
@@ -133,11 +87,8 @@ export interface FormModel {
   name: string;
 
   settings?: FormSetting;
-  themeSettings?: ThemeSettings;
 
   fields?: FormField[];
-  variables?: Variable[];
-  logics?: FormLogic[];
 
   retentionAt: number;
   status: FormStatusEnum;
@@ -163,11 +114,6 @@ export interface AddressValue {
   country: string;
 }
 
-export interface FullNameValue {
-  firstName: string;
-  lastName: string;
-}
-
 export interface DateRangeValue {
   start?: string;
   end?: string;
@@ -177,7 +123,6 @@ export type AnswerValue =
   | ChoiceValue
   | FileUploadValue
   | AddressValue
-  | FullNameValue
   | DateRangeValue
   | any;
 
@@ -196,110 +141,3 @@ export interface NumberVariable {
 }
 
 export type Variable = StringVariable | NumberVariable;
-
-export interface TextCondition {
-  comparison:
-    | ComparisonEnum.IS
-    | ComparisonEnum.IS_NOT
-    | ComparisonEnum.CONTAINS
-    | ComparisonEnum.DOES_NOT_CONTAIN
-    | ComparisonEnum.STARTS_WITH
-    | ComparisonEnum.ENDS_WITH;
-  expected?: string;
-}
-
-export interface SingleChoiceCondition {
-  comparison: ComparisonEnum.IS | ComparisonEnum.IS_NOT;
-  expected?: string;
-}
-
-export interface MultipleChoiceCondition {
-  comparison:
-    | ComparisonEnum.IS
-    | ComparisonEnum.IS_NOT
-    | ComparisonEnum.CONTAINS
-    | ComparisonEnum.DOES_NOT_CONTAIN;
-  // IS and IS_NOT should be used with array
-  expected?: string | string[];
-}
-
-export interface DateCondition {
-  comparison:
-    | ComparisonEnum.IS
-    | ComparisonEnum.IS_NOT
-    | ComparisonEnum.IS_BEFORE
-    | ComparisonEnum.IS_AFTER;
-  expected?: string;
-}
-
-export interface NumberCondition {
-  comparison:
-    | ComparisonEnum.EQUAL
-    | ComparisonEnum.NOT_EQUAL
-    | ComparisonEnum.GREATER_THAN
-    | ComparisonEnum.LESS_THAN
-    | ComparisonEnum.GREATER_OR_EQUAL_THAN
-    | ComparisonEnum.LESS_OR_EQUAL_THAN;
-  expected?: number;
-}
-
-export interface OtherCondition {
-  comparison: ComparisonEnum.IS_EMPTY | ComparisonEnum.IS_NOT_EMPTY;
-}
-
-export interface StringVariableCondition extends TextCondition {
-  ref?: string;
-}
-
-export interface NumberVariableCondition extends NumberCondition {
-  ref?: string;
-}
-
-export type LogicCondition =
-  | TextCondition
-  | SingleChoiceCondition
-  | MultipleChoiceCondition
-  | DateCondition
-  | NumberCondition
-  | StringVariableCondition
-  | NumberVariableCondition
-  | OtherCondition;
-
-export interface NavigateAction {
-  kind: ActionEnum.NAVIGATE;
-  fieldId: string;
-}
-
-export interface NumberCalculateAction {
-  kind: ActionEnum.CALCULATE;
-  variable: string;
-  operator:
-    | CalculateEnum.ADDITION
-    | CalculateEnum.SUBTRACTION
-    | CalculateEnum.MULTIPLICATION
-    | CalculateEnum.DIVISION
-    | CalculateEnum.ASSIGNMENT;
-  value?: number | string;
-  ref?: string;
-}
-
-export interface StringCalculateAction
-  extends Omit<NumberCalculateAction, "operator"> {
-  operator: CalculateEnum.ADDITION | CalculateEnum.ASSIGNMENT;
-}
-
-export type LogicAction =
-  | NavigateAction
-  | NumberCalculateAction
-  | StringCalculateAction;
-
-export interface FormLogic {
-  fieldId: number;
-  comparision: ComparisonEnum;
-  expected?: string | string[];
-  kind: ActionEnum;
-  navigateFieldId?: number;
-  variableId?: number;
-  operator?: CalculateEnum;
-  value?: string;
-}

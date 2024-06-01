@@ -1,15 +1,18 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../config";
 import {
+  FormFieldGroupModel,
   FormFieldModel,
-  FormVariableModel,
   SubmissionFieldModel,
   SubmissionModel,
 } from "../model";
 import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
-import { start } from "repl";
-import { FieldKindEnum, Property } from "@form/shared-type-enums";
+import {
+  FieldKindEnum,
+  Property,
+  SubmissionFieldValue,
+} from "@form/shared-type-enums";
 
 interface FindSubmissionOptions {
   formId: string | number;
@@ -18,35 +21,39 @@ interface FindSubmissionOptions {
 }
 
 interface SubmissionType {
-  formId: string;
   id: string;
+  formId: string;
+  ip: string;
   startAt: number;
   endAt: number;
+  groups: {
+    groupId: string;
+    title: string | null;
+    description: string | null;
+    position: number;
+    fields: {
+      id: string;
+      title: string | null;
+      position: number;
+      description: string | null;
+      property: Property | null;
+      kind: FieldKindEnum | null;
+      value: SubmissionFieldValue;
+    }[];
+  }[];
   createdAt: number | null;
   updatedAt: number | null;
-  ip: string;
-  variable: {
-    fieldId: string;
-    name: string | null;
-    kind: "NUMBER" | "STRING" | null;
-    value: any | any[];
-  }[];
-  answer: {
-    fieldId: string;
-    kind: string | null;
-    property: Property | null;
-    value: any | any[];
-  }[];
 }
 
 interface Submission {
   formId: string | number;
-  answers: { id: string | number; kind: FieldKindEnum; value?: any }[];
-  variables: {
-    id: string | number;
-    name: string;
-    kind: "STRING" | "NUMBER";
-    value: string;
+  groups: {
+    groupId: string | number;
+    fields: {
+      id: string | number;
+      kind: FieldKindEnum;
+      value?: any;
+    }[];
   }[];
   startAt: number;
   endAt: number;
@@ -71,50 +78,12 @@ export class SubmissionService {
   public static async findById(
     formId: string | number,
     submissionId: string | number
-  ) {
+  ): Promise<SubmissionType> {
     if (typeof submissionId === "string")
       submissionId = decodeUUIDToId(submissionId);
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
     this.isValidSubmission(formId, submissionId);
-
-    const submissionAnswer = await db
-      .select({
-        fieldId: SubmissionFieldModel.fieldId,
-        kind: FormFieldModel.kind,
-        property: FormFieldModel.property,
-        value: SubmissionFieldModel.value,
-      })
-      .from(SubmissionFieldModel)
-      .leftJoin(
-        FormFieldModel,
-        eq(FormFieldModel.id, SubmissionFieldModel.fieldId)
-      )
-      .where(
-        and(
-          eq(SubmissionFieldModel.submissionId, submissionId),
-          eq(SubmissionFieldModel.kind, "FORM_FIELD")
-        )
-      );
-
-    const submissionVariable = await db
-      .select({
-        fieldId: SubmissionFieldModel.fieldId,
-        name: FormVariableModel.name,
-        kind: FormVariableModel.kind,
-        value: SubmissionFieldModel.value,
-      })
-      .from(SubmissionFieldModel)
-      .leftJoin(
-        FormVariableModel,
-        eq(FormVariableModel.id, SubmissionFieldModel.fieldId)
-      )
-      .where(
-        and(
-          eq(SubmissionFieldModel.submissionId, submissionId),
-          eq(SubmissionFieldModel.kind, "FORM_VARIABLE")
-        )
-      );
 
     const submission = (
       await db
@@ -123,21 +92,61 @@ export class SubmissionService {
         .where(eq(SubmissionModel.id, submissionId))
     )[0];
 
-    {
-    }
+    const groups = await db
+      .select({
+        groupId: FormFieldGroupModel.id,
+        title: FormFieldGroupModel.title,
+        description: FormFieldGroupModel.description,
+        position: FormFieldGroupModel.position,
+      })
+      .from(FormFieldGroupModel)
+      .where(eq(FormFieldGroupModel.formId, formId))
+      .orderBy(FormFieldGroupModel.position);
+
+    const groupsWithAnswers = await Promise.all(
+      groups.map(async (group) => {
+        const fields = await db
+          .select({
+            id: FormFieldModel.id,
+            title: FormFieldModel.title,
+            description: FormFieldModel.description,
+            position: FormFieldModel.position,
+            property: FormFieldModel.property,
+            kind: FormFieldModel.kind,
+            value: SubmissionFieldModel.value,
+          })
+          .from(FormFieldModel)
+          .innerJoin(
+            SubmissionFieldModel,
+            eq(FormFieldModel.id, SubmissionFieldModel.fieldId)
+          )
+          .where(
+            and(
+              eq(FormFieldModel.fieldGroupId, group.groupId),
+              eq(SubmissionFieldModel.submissionId, submissionId)
+            )
+          );
+
+        return {
+          ...group,
+          fields,
+        };
+      })
+    );
 
     return {
       ...submission,
       id: encodeIdToUUID(submission.id),
-      formId: encodeIdToUUID(submission.formId as number),
-
-      variable: submissionVariable.map((variable) => ({
-        ...variable,
-        fieldId: encodeIdToUUID(variable.fieldId as number),
-      })),
-      answer: submissionAnswer.map((answer) => ({
-        ...answer,
-        fieldId: encodeIdToUUID(answer.fieldId as number),
+      formId: encodeIdToUUID(submission.formId),
+      groups: groupsWithAnswers.map((group) => ({
+        ...group,
+        groupId: encodeIdToUUID(group.groupId),
+        fields: group.fields.map((field) => ({
+          ...field,
+          value: field.value as SubmissionFieldValue,
+          id: encodeIdToUUID(field.id),
+          kind: field.kind as FieldKindEnum,
+        })),
       })),
     };
   }
@@ -150,7 +159,7 @@ export class SubmissionService {
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
     const submissionIds = await db
-      .select({ id: SubmissionModel.id })
+      .select()
       .from(SubmissionModel)
       .where(eq(SubmissionModel.formId, formId))
       .offset((page - 1) * limit)
@@ -354,28 +363,16 @@ export class SubmissionService {
         .returning({ id: SubmissionModel.id })
     )[0];
 
-    for (const answer of _submission.answers) {
-      await db.insert(SubmissionFieldModel).values({
-        submissionId: submission.id,
-        fieldId:
-          typeof answer.id === "string" ? decodeUUIDToId(answer.id) : answer.id,
-        kind: "FORM_FIELD",
-        value: answer.value,
-      });
+    for (const group of _submission.groups) {
+      for (const field of group.fields) {
+        await db.insert(SubmissionFieldModel).values({
+          submissionId: submission.id,
+          fieldId: decodeUUIDToId(field.id as string),
+          kind: field.kind,
+          value: field.value,
+        });
+      }
     }
-
-    for (const variable of _submission.variables) {
-      await db.insert(SubmissionFieldModel).values({
-        submissionId: submission.id,
-        fieldId:
-          typeof variable.id === "string"
-            ? decodeUUIDToId(variable.id)
-            : variable.id,
-        kind: "FORM_VARIABLE",
-        value: variable.value,
-      });
-    }
-
     return encodeIdToUUID(submission.id);
   }
 }

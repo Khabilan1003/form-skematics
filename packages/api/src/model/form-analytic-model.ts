@@ -5,7 +5,11 @@ import { FormModel } from "./form.model";
 export const FormAnalyticModel = sqliteTable("formanalytic", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
-  formId: integer("formId").references(() => FormModel.id),
+  formId: integer("formId")
+    .references(() => FormModel.id, {
+      onDelete: "cascade",
+    })
+    .notNull(),
 
   totalVisits: integer("totalVisits", { mode: "number" }).default(0),
 

@@ -14,7 +14,6 @@ export const FormModel = sqliteTable("form", {
 
   description: text("description"),
 
-  // Don't use ["NORMAL" , "TRASH"] - directly. Create a shared-enum-package then use that to get this value
   status: text("status", {
     enum: Object.values(FormStatusEnum) as [string, ...string[]],
   }),

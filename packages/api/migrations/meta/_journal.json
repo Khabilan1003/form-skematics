@@ -8,6 +8,13 @@
       "when": 1716452690610,
       "tag": "0000_regular_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1717155202752,
+      "tag": "0001_vengeful_groot",
+      "breakpoints": true
     }
   ]
 }

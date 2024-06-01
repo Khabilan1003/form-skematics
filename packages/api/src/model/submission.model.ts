@@ -7,7 +7,7 @@ export const SubmissionModel = sqliteTable("submission", {
 
   formId: integer("formId", { mode: "number" }).references(() => FormModel.id, {
     onDelete: "cascade",
-  }),
+  }).notNull(),
 
   ip: text("ip", { mode: "text" }).notNull(),
 

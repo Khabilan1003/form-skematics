@@ -3,19 +3,16 @@ import { FieldKindEnum } from "@form/shared-type-enums";
 
 export const createSubmissionBodySchema = z.object({
   formId: z.union([z.string(), z.number()]),
-  answers: z.array(
+  groups: z.array(
     z.object({
-      id: z.union([z.string(), z.number()]),
-      kind: z.nativeEnum(FieldKindEnum),
-      value: z.any(),
-    })
-  ),
-  variables: z.array(
-    z.object({
-      id: z.union([z.string(), z.number()]),
-      name: z.string(),
-      kind: z.enum(["STRING", "NUMBER"]),
-      value: z.string(),
+      groupId: z.union([z.string(), z.number()]),
+      fields: z.array(
+        z.object({
+          id: z.union([z.string(), z.number()]),
+          kind: z.nativeEnum(FieldKindEnum),
+          value: z.any(),
+        })
+      ),
     })
   ),
   startAt: z.number(),

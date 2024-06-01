@@ -30,9 +30,9 @@ app.route("/", UserRouter);
 app.route("/", AuthRouter);
 app.route("/", FormRouter);
 app.route("/", FileRouter);
+app.route("/", SubmissionRouter);
 app.route("/", FormAnalticRouter);
 app.route("/", FormReportRouter);
-app.route("/", SubmissionRouter);
 
 // Scheduler
 SchedulerService.start();

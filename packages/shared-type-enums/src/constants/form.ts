@@ -1,14 +1,4 @@
-import { FieldKindEnum } from '../enums/form'
-
-export const OTHER_FIELD_KINDS = [
-  FieldKindEnum.WELCOME,
-  FieldKindEnum.THANK_YOU
-]
-
-export const STATEMENT_FIELD_KINDS = [
-  FieldKindEnum.STATEMENT,
-  ...OTHER_FIELD_KINDS
-]
+import { FieldKindEnum } from "../enums/form";
 
 export const QUESTION_FIELD_KINDS = [
   // Input
@@ -19,7 +9,6 @@ export const QUESTION_FIELD_KINDS = [
   // Select
   FieldKindEnum.YES_NO,
   FieldKindEnum.MULTIPLE_CHOICE,
-  FieldKindEnum.PICTURE_CHOICE,
 
   // File
   FieldKindEnum.FILE_UPLOAD,
@@ -32,33 +21,20 @@ export const QUESTION_FIELD_KINDS = [
   FieldKindEnum.DATE,
   FieldKindEnum.DATE_RANGE,
 
-  // Data
-  FieldKindEnum.INPUT_TABLE,
-
   // Fieldset
-  FieldKindEnum.FULL_NAME,
-  FieldKindEnum.ADDRESS,
   FieldKindEnum.EMAIL,
   FieldKindEnum.URL,
   FieldKindEnum.PHONE_NUMBER,
-  FieldKindEnum.COUNTRY,
-]
+];
 
 export const INPUT_FIELD_KINDS = [
   FieldKindEnum.SHORT_TEXT,
   FieldKindEnum.LONG_TEXT,
   FieldKindEnum.NUMBER,
   FieldKindEnum.EMAIL,
-  FieldKindEnum.URL
-]
+  FieldKindEnum.URL,
+];
 
-export const CHOICES_FIELD_KINDS = [
-  FieldKindEnum.MULTIPLE_CHOICE,
-  FieldKindEnum.PICTURE_CHOICE
-]
+export const CHOICES_FIELD_KINDS = [FieldKindEnum.MULTIPLE_CHOICE];
 
-
-export const FORM_FIELD_KINDS = [
-  ...QUESTION_FIELD_KINDS,
-  ...STATEMENT_FIELD_KINDS
-]
+export const FORM_FIELD_KINDS = [...QUESTION_FIELD_KINDS];

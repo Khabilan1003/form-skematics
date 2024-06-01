@@ -1,55 +1,44 @@
 CREATE TABLE `formanalytic` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`formId` integer,
+	`formId` integer NOT NULL,
 	`totalVisits` integer DEFAULT 0,
 	`submissionCount` integer DEFAULT 0,
 	`averageTime` integer DEFAULT 0,
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
-	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `formfieldgroup` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`formId` integer NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`title` text,
+	`description` text,
+	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `formfield` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`formId` integer,
+	`fieldGroupId` integer NOT NULL,
 	`position` integer DEFAULT 0 NOT NULL,
 	`title` text,
 	`description` text,
 	`kind` text,
 	`required` integer DEFAULT false,
-	`layoutMediaType` text,
-	`layoutMediaUrl` text,
-	`layoutBrightness` integer,
-	`layoutAlign` text,
 	`property` text,
-	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`fieldGroupId`) REFERENCES `formfieldgroup`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `formfieldreport` (
 	`fieldId` integer PRIMARY KEY NOT NULL,
-	`count` integer DEFAULT 0,
-	`average` integer DEFAULT 0,
+	`total` integer,
+	`count` integer,
+	`average` integer,
 	`chooses` text,
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
-	FOREIGN KEY (`fieldId`) REFERENCES `formfield`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE TABLE `formlogic` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`formId` integer NOT NULL,
-	`fieldId` integer NOT NULL,
-	`comparision` text,
-	`expected` text,
-	`kind` text,
-	`navigateFieldId` integer,
-	`variableId` integer,
-	`operator` text,
-	`value` text,
-	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`fieldId`) REFERENCES `formfield`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`navigateFieldId`) REFERENCES `formfield`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`variableId`) REFERENCES `formvariable`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`fieldId`) REFERENCES `formfield`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `form` (
@@ -81,30 +70,6 @@ CREATE TABLE `formsetting` (
 	`closedFormDescription` text,
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
-	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
-CREATE TABLE `formthemesetting` (
-	`formId` integer PRIMARY KEY NOT NULL,
-	`fontFamily` text NOT NULL,
-	`screenFontSize` text,
-	`fieldFontSize` text,
-	`questionTextColor` text NOT NULL,
-	`answerTextColor` text NOT NULL,
-	`buttonTextColor` text NOT NULL,
-	`buttonBackgroundColor` text NOT NULL,
-	`backgroundColor` text NOT NULL,
-	`createdAt` integer DEFAULT (strftime('%s', 'now')),
-	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
-	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
-CREATE TABLE `formvariable` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`formId` integer NOT NULL,
-	`name` text NOT NULL,
-	`kind` text NOT NULL,
-	`value` text NOT NULL,
 	FOREIGN KEY (`formId`) REFERENCES `form`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

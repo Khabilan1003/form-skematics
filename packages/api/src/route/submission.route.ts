@@ -32,9 +32,14 @@ router.post(
   ipMiddleware,
   zValidator("json", createSubmissionBodySchema),
   async (c) => {
+    const user: Record<string, any> = c.get("user" as never);
     const ip: string = c.get("ip" as never);
 
     const input = c.req.valid("json");
+    const userId = decodeUUIDToId(user.id);
+    const formId = decodeUUIDToId(input.formId as string);
+
+    await FormService.isFormAccessible(userId, formId);
 
     const submissionId = await SubmissionService.create(input, ip);
 

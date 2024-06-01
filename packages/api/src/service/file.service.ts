@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 export class FileService {
   static async upload(file: File): Promise<string> {
     const buffer = await file.arrayBuffer();
+    const extension = file.name.split(".")[file.name.split(".").length - 1];
 
     let fileName: string = "";
     let path: string = "";
@@ -15,12 +16,14 @@ export class FileService {
         helper.isEmpty(path) ||
         fs.existsSync(path)
       ) {
-        fileName = `${nanoid(32)}.${file.type.split("/")[1]}`;
+        fileName = `${nanoid(32)}.${extension}`;
         path = `${__dirname.replace(
-          "/src/route",
+          "/src/service",
           ""
         )}/static/upload/${fileName}`;
       }
+
+      console.log(path);
 
       fs.writeFileSync(path, Buffer.from(buffer));
     } catch (exception) {
@@ -32,7 +35,7 @@ export class FileService {
     return fileName;
   }
 
-  static async get(fileName: string): Promise<File> {
+  static async getImage(fileName: string): Promise<File> {
     const filePath = `${__dirname.replace(
       "/src/service",
       ""

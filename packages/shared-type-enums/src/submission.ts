@@ -1,5 +1,4 @@
 import type { FieldKindEnum } from "./enums/form";
-import type { Variable } from "./form";
 
 export interface Answer {
   id: string;
@@ -10,7 +9,6 @@ export interface Answer {
 export interface SubmissionModel {
   formId: string;
   answers: Answer[];
-  variables?: Variable[];
   startAt?: number;
   endAt?: number;
 }

@@ -1,10 +1,18 @@
 import { eq } from "drizzle-orm";
 import { db } from "../config";
-import { FormFieldModel, FormFieldReportModel } from "../model";
-import { decodeUUIDToId, helper } from "@form/utils";
+import {
+  FormFieldGroupModel,
+  FormFieldModel,
+  FormFieldReportModel,
+} from "../model";
+import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { FormService } from "./form.service";
 import { SubmissionService } from "./submission.service";
-import { FieldKindEnum } from "@form/shared-type-enums";
+import {
+  Choice,
+  FieldKindEnum,
+  SubmissionFieldValue,
+} from "@form/shared-type-enums";
 
 interface FormFieldReportResponse {
   id: number | string;
@@ -18,7 +26,7 @@ export class FormReportService {
   public static async findById(formId: string | number) {
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
-    return await db
+    const data = await db
       .select({
         fieldId: FormFieldReportModel.fieldId,
         total: FormFieldReportModel.total,
@@ -27,96 +35,97 @@ export class FormReportService {
         chooses: FormFieldReportModel.chooses,
       })
       .from(FormFieldReportModel)
-      .leftJoin(
+      .innerJoin(
         FormFieldModel,
         eq(FormFieldReportModel.fieldId, FormFieldModel.id)
       )
-      .where(eq(FormFieldModel.id, formId));
+      .innerJoin(FormFieldGroupModel, eq(FormFieldGroupModel.formId, formId))
+      .where(eq(FormFieldGroupModel.formId, formId));
+
+    return data.map((d) => ({ ...d, fieldId: encodeIdToUUID(d.fieldId) }));
   }
 
   public static async generate(formId: string | number) {
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
     const form = await FormService.findById(formId);
-    if (!form || form.fields.length < 1) return;
+    if (!form || form.groups.length < 1) return;
 
     const submissions = await SubmissionService.findAll({ formId });
     if (submissions.totalSubmissions < 1) return;
 
     const responses: FormFieldReportResponse[] = [];
-    const fields = form.fields;
 
-    for (const field of fields) {
-      const answers = submissions.submissions
-        .map((submission) => {
-          return submission.answer.find((ans) => ans.fieldId === field.id);
-        })
-        .filter(Boolean);
+    for (const group of form.groups) {
+      for (const field of group.fields) {
+        const answers = submissions.submissions.map((submission) => {
+          for (const g of submission.groups) {
+            for (const f of g.fields) {
+              if (f.id === field.id) return f.value;
+            }
+          }
+          return "";
+        });
 
-      const count = answers.length;
+        const count = answers.length;
 
-      if (count < 1) continue;
+        if (count < 1) continue;
 
-      const response: FormFieldReportResponse = {
-        id: field.id,
-        total: submissions.submissions.length,
-        count,
-        average: 0,
-        chooses: [],
-      };
+        const response: FormFieldReportResponse = {
+          id: field.id,
+          total: submissions.submissions.length,
+          count,
+          average: 0,
+          chooses: [],
+        };
 
-      for (const answer of answers) {
-        if (helper.isNil(answer?.value)) continue;
-        switch (field.kind) {
-          case FieldKindEnum.YES_NO:
-          case FieldKindEnum.MULTIPLE_CHOICE:
-          case FieldKindEnum.PICTURE_CHOICE:
-            const choices = field.property?.choices;
+        for (const answer of answers) {
+          if (helper.isNil(answer)) continue;
+          switch (field.kind) {
+            case FieldKindEnum.YES_NO:
+            case FieldKindEnum.MULTIPLE_CHOICE:
+              const choices = field.property?.choices as Choice[];
 
-            if (helper.isValidArray(choices)) {
-              let values = answer?.value;
+              if (helper.isValidArray(choices)) {
+                let values: SubmissionFieldValue = answer;
 
-              if (answer!.kind === FieldKindEnum.YES_NO) {
-                values = [answer!.value];
+                if (field.kind === FieldKindEnum.YES_NO) {
+                  values = [answer as number];
+                }
+
+                response.chooses = choices!.map((choice) => {
+                  const count = (values as number[]).includes(choice.id)
+                    ? 1
+                    : 0;
+                  const prevChoice = response.chooses.find(
+                    (row) => row.id === choice.id
+                  );
+                  const prevCount = prevChoice?.count ?? 0;
+
+                  return {
+                    id: choice.id,
+                    label: choice.label,
+                    count: prevCount + count,
+                  } as any;
+                });
               }
 
-              response.chooses = choices!.map((choice) => {
-                const count = values.includes(choice.id) ? 1 : 0;
-                const prevChoice = response.chooses.find(
-                  (row) => row.id === choice.id
-                );
-                const prevCount = prevChoice?.count ?? 0;
+              break;
+            case FieldKindEnum.OPINION_SCALE:
+            case FieldKindEnum.RATING:
+              const value = Number(answer);
 
-                console.log(choice, prevCount);
-                return {
-                  id: choice.id,
-                  label: choice.label,
-                  count: prevCount + count,
-                } as any;
-              });
-            }
-
-            console.log("Choices : " + JSON.stringify(response.chooses));
-            break;
-          case FieldKindEnum.OPINION_SCALE:
-          case FieldKindEnum.RATING:
-            const value = Number(answer!.value);
-
-            response.average += value;
-            response.chooses[value] = (response.chooses[value] || 0) + 1;
-            break;
+              response.average += value;
+              response.chooses[value] = (response.chooses[value] || 0) + 1;
+              break;
+          }
         }
+        response.average = parseFloat(
+          (response.average / response.count).toFixed(1)
+        );
+        responses.push(response);
       }
-
-      // console.log(response);
-
-      response.average = parseFloat(
-        (response.average / response.count).toFixed(1)
-      );
-      responses.push(response);
     }
-
-    console.log("Responses : ", JSON.stringify(responses));
 
     await this.add(responses);
   }
