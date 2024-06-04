@@ -2,12 +2,13 @@ import { z } from "zod";
 import { commonFileMimeTypes } from "@form/utils";
 
 export const fileUploadBodySchema = z.object({
-  type: z.enum(["file", "image"]),
+  type: z.enum(["file", "image"], { message: "Type mistake" }),
   file: z
     .any()
-    .refine((file) => file?.size <= 5000000, "Max image size is 5MB")
-    .refine(
-      (file) => commonFileMimeTypes.includes(file.type),
-      "Invalid file type"
-    ),
+    .refine((file) => {
+      return file?.size <= 5000000;
+    }, "Max file size is 5MB")
+    .refine((file) => {
+      return commonFileMimeTypes.includes(file.type);
+    }, "Invalid file type"),
 });

@@ -4,6 +4,7 @@ import {
   FormFieldGroupModel,
   FormFieldModel,
   FormFieldReportModel,
+  FormModel,
 } from "../model";
 import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
 import { FormService } from "./form.service";
@@ -39,7 +40,10 @@ export class FormReportService {
         FormFieldModel,
         eq(FormFieldReportModel.fieldId, FormFieldModel.id)
       )
-      .innerJoin(FormFieldGroupModel, eq(FormFieldGroupModel.formId, formId))
+      .innerJoin(
+        FormFieldGroupModel,
+        eq(FormFieldModel.fieldGroupId, FormFieldGroupModel.id)
+      )
       .where(eq(FormFieldGroupModel.formId, formId));
 
     return data.map((d) => ({ ...d, fieldId: encodeIdToUUID(d.fieldId) }));
@@ -51,22 +55,32 @@ export class FormReportService {
     const form = await FormService.findById(formId);
     if (!form || form.groups.length < 1) return;
 
-    const submissions = await SubmissionService.findAll({ formId });
+    const submissionCount = await SubmissionService.countInForm(formId);
+    const submissions = await SubmissionService.findAll({
+      formId,
+      limit: submissionCount,
+    });
     if (submissions.totalSubmissions < 1) return;
 
     const responses: FormFieldReportResponse[] = [];
 
     for (const group of form.groups) {
       for (const field of group.fields) {
-        const answers = submissions.submissions.map((submission) => {
-          for (const g of submission.groups) {
-            for (const f of g.fields) {
-              if (f.id === field.id) return f.value;
-            }
-          }
-          return "";
-        });
+        const answers: SubmissionFieldValue[] = [];
 
+        for (const submission of submissions.submissions)
+          for (const g of submission.groups)
+            for (const f of g.fields)
+              if (f.id === field.id) answers.push(f.value);
+
+        console.log(field.kind);
+        console.log(answers.length);
+        
+        if (field.kind === FieldKindEnum.RATING) {
+          for (let i = 0; i < answers.length; i++) {
+            console.log(`${i} : ${answers[i]}`);
+          }
+        }
         const count = answers.length;
 
         if (count < 1) continue;
@@ -78,6 +92,15 @@ export class FormReportService {
           average: 0,
           chooses: [],
         };
+        if (
+          [
+            FieldKindEnum.RATING.toString(),
+            FieldKindEnum.OPINION_SCALE.toString(),
+          ].includes(field.kind)
+        ) {
+          let total = field.property?.total || 5;
+          for (let i = 0; i < total; i++) response.chooses.push(0);
+        }
 
         for (const answer of answers) {
           if (helper.isNil(answer)) continue;
@@ -113,10 +136,11 @@ export class FormReportService {
               break;
             case FieldKindEnum.OPINION_SCALE:
             case FieldKindEnum.RATING:
-              const value = Number(answer);
+              const value = answer as number;
+              if (value === 0) break;
 
               response.average += value;
-              response.chooses[value] = (response.chooses[value] || 0) + 1;
+              response.chooses[value - 1] += 1;
               break;
           }
         }

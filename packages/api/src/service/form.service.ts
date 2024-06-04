@@ -387,7 +387,7 @@ export class FormService {
         defaultCountryCode: "+91",
       };
     } else if (
-      fieldKindEnum in [FieldKindEnum.DATE, FieldKindEnum.DATE_RANGE]
+      [FieldKindEnum.DATE, FieldKindEnum.DATE_RANGE].includes(fieldKindEnum)
     ) {
       property = {
         allowTime: false,
