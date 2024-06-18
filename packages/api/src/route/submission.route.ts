@@ -8,6 +8,11 @@ import {
 import { SubmissionService } from "../service/submission.service";
 import { FormService } from "../service/form.service";
 import { decodeUUIDToId } from "@form/utils";
+import {
+  isExceptionSchema,
+  ExceptionSchema,
+} from "../service/schema/error.schema";
+import { HTTPException } from "hono/http-exception";
 import { trace, Span } from "@opentelemetry/api";
 
 // Tracer
@@ -22,10 +27,16 @@ router.get("/:formId", authMiddleware, async (c) => {
 
     const formId = c.req.param("formId");
 
-    await FormService.isFormAccessible(
+    let isValid = await FormService.isFormAccessible(
       decodeUUIDToId(user.id),
       decodeUUIDToId(formId)
     );
+    if (isExceptionSchema(isValid)) {
+      span.end();
+      throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+        message: (isValid as ExceptionSchema).message,
+      });
+    }
 
     const submissions = await SubmissionService.findAll({ formId });
 

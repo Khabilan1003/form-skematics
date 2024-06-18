@@ -18,13 +18,16 @@ import {
   hs,
   timestamp,
 } from "@form/utils";
-import { HTTPException } from "hono/http-exception";
 import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { FormSetting } from "@form/shared-type-enums";
 import { FORM_TRASH_INTERVAL } from "../environments";
+import { ExceptionSchema } from "./schema/error.schema";
 
 export class FormService {
-  public static async isFormAccessible(userId: number, formId: number) {
+  public static async isFormAccessible(
+    userId: number,
+    formId: number
+  ): Promise<ExceptionSchema | void> {
     // Check whether the formid belongs to the repective user
     const form = await db
       .select()
@@ -32,15 +35,22 @@ export class FormService {
       .where(eq(FormModel.id, formId));
 
     if (form.length === 0)
-      throw new HTTPException(404, { message: "Form not found" });
+      return {
+        statusCode: 404,
+        message: "Form not found",
+      };
 
     if (form[0].userId !== userId)
-      throw new HTTPException(401, {
-        message: "You do not have access to this form",
-      });
+      return {
+        statusCode: 401,
+        message: "No access to this form",
+      };
   }
 
-  public static async isGroupAccessibe(formId: number, fieldGroupId: number) {
+  public static async isGroupAccessibe(
+    formId: number,
+    fieldGroupId: number
+  ): Promise<ExceptionSchema | void> {
     // Check whether the fieldGroupId belongs to the repective Form
     const fieldGroup = await db
       .select()
@@ -48,27 +58,38 @@ export class FormService {
       .where(eq(FormFieldGroupModel.id, fieldGroupId));
 
     if (fieldGroup.length === 0)
-      throw new HTTPException(404, { message: "Form Field Group not found" });
+      return {
+        statusCode: 404,
+        message: "Form field group not found",
+      };
 
     if (fieldGroup[0].formId !== formId)
-      throw new HTTPException(401, {
-        message: "You do not have access to this field group",
-      });
+      return {
+        statusCode: 404,
+        message: "No access to this field group",
+      };
   }
 
-  static async isFieldAccessible(fieldGroupId: number, fieldId: number) {
+  static async isFieldAccessible(
+    fieldGroupId: number,
+    fieldId: number
+  ): Promise<ExceptionSchema | void> {
     const fields = await db
       .select()
       .from(FormFieldModel)
       .where(eq(FormFieldModel.id, fieldId));
 
     if (fields.length === 0)
-      throw new HTTPException(404, { message: "Form Field not found" });
+      return {
+        statusCode: 404,
+        message: "Form field not found",
+      };
 
     if (fields[0].fieldGroupId !== fieldGroupId)
-      throw new HTTPException(401, {
-        message: "You do not have access to this field",
-      });
+      return {
+        statusCode: 401,
+        message: "No access to this field",
+      };
   }
 
   static async findById(formId: string | number) {
@@ -188,8 +209,6 @@ export class FormService {
     if (typeof userId === "string") userId = decodeUUIDToId(userId);
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
-    await this.isFormAccessible(userId, formId);
-
     let updateConfig: Record<string, any> = {};
 
     if (updates.name) updateConfig.name = updates.name;
@@ -229,18 +248,6 @@ export class FormService {
     }
     if (typeof formId === "number") formId = [formId];
 
-    // Check whether the given formId belong to userId
-    const forms = await db
-      .select()
-      .from(FormModel)
-      .where(inArray(FormModel.id, formId as number[]));
-
-    for (let i = 0; i < forms.length; i++)
-      if (!isScheduler && forms[i].userId !== userId)
-        throw new HTTPException(401, {
-          message: "Unauthorized access of other users form",
-        });
-
     // Delete Forms
     const ids = await db
       .delete(FormModel)
@@ -259,12 +266,8 @@ export class FormService {
     if (typeof userId === "string") userId = decodeUUIDToId(userId);
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
 
-    // Check whether the formid belongs to the repective user
-    await this.isFormAccessible(userId, formId);
-
     // Check updates are empty or not
-    if (helper.isEmpty(updates))
-      throw new HTTPException(404, { message: "Nothing to Update" });
+    if (helper.isEmpty(updates)) return true;
 
     // Update Form Setting
     const updatedSettingsId = await db

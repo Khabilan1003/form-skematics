@@ -7,7 +7,6 @@ import {
   SubmissionModel,
 } from "../model";
 import { decodeUUIDToId, encodeIdToUUID, helper } from "@form/utils";
-import { HTTPException } from "hono/http-exception";
 import {
   FieldKindEnum,
   Property,
@@ -60,21 +59,6 @@ interface Submission {
 }
 
 export class SubmissionService {
-  private static async isValidSubmission(formId: number, submissionId: number) {
-    const submission = await db
-      .select()
-      .from(SubmissionModel)
-      .where(eq(SubmissionModel.id, submissionId));
-
-    if (submission.length === 0)
-      throw new HTTPException(404, { message: "Submission Not Found" });
-
-    if (submission[0].formId !== formId)
-      throw new HTTPException(401, {
-        message: "Submission does not belong to this form",
-      });
-  }
-
   public static async findById(
     formId: string | number,
     submissionId: string | number
@@ -82,8 +66,6 @@ export class SubmissionService {
     if (typeof submissionId === "string")
       submissionId = decodeUUIDToId(submissionId);
     if (typeof formId === "string") formId = decodeUUIDToId(formId);
-
-    this.isValidSubmission(formId, submissionId);
 
     const submission = (
       await db

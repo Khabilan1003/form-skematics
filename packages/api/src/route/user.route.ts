@@ -19,6 +19,10 @@ import {
   updateUserBodySchema,
   updateUserPasswordBodySchema,
 } from "./schema/user.schema";
+import {
+  isExceptionSchema,
+  ExceptionSchema,
+} from "../service/schema/error.schema";
 import { trace, Span } from "@opentelemetry/api";
 
 // Tracer
@@ -41,14 +45,16 @@ router.post("email-verification-code", authMiddleware, async (c) => {
     async (span: Span) => {
       const user: Record<string, any> = c.get("user" as never);
 
-      if (user.isEmailVerified)
+      if (user.isEmailVerified) {
+        span.end();
         throw new HTTPException(400, { message: "Email is already verified" });
+      }
 
       // Add a code of verify email address to cache
       const key = `verify_email:${user.id}`;
       const code = await AuthService.getVerificationCode(key);
 
-      MailService.emailVerificationRequest(user.email, code);
+      await MailService.emailVerificationRequest(user.email, code);
 
       span.end();
       return c.json({ success: true });
@@ -70,7 +76,14 @@ router.post(
         throw new HTTPException(400, { message: "Email is already verified" });
 
       const key = `verify_email:${user.id}`;
-      await AuthService.checkVerificationCode(key, input.code);
+
+      let isValid = await AuthService.checkVerificationCode(key, input.code);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
 
       await UserService.update(user.id, {
         isEmailVerified: true,
@@ -99,16 +112,19 @@ router.post(
           user.password
         );
 
-        if (!verified)
+        if (!verified) {
+          span.end();
           throw new HTTPException(400, {
             message: "The password does not match",
           });
+        }
 
-        const result = await UserService.update(user.id, {
+        await UserService.update(user.id, {
           password: await passwordHash(input.newPassword, BCRYPT_SALT),
         });
 
-        MailService.passwordChangeAlert(user.email);
+        await MailService.passwordChangeAlert(user.email);
+
         span.end();
         return c.json({ success: true });
       }
@@ -143,7 +159,13 @@ router.post(
         const input = c.req.valid("json");
 
         const key = `user_deletion:${user.id}`;
-        await AuthService.checkVerificationCode(key, input.code);
+        let isValid = await AuthService.checkVerificationCode(key, input.code);
+        if (isExceptionSchema(isValid)) {
+          span.end();
+          throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+            message: (isValid as ExceptionSchema).message,
+          });
+        }
 
         await UserService.update(user.id, {
           isDeletionScheduled: true,
@@ -188,6 +210,7 @@ router.post(
       const input = c.req.valid("json");
 
       if (isDisposableEmail(input.email)) {
+        span.end();
         throw new HTTPException(400, {
           message:
             "Error: Disposable email address detected, please use a work email to create the account",
@@ -207,7 +230,7 @@ router.post(
       const key = `verify_email:${user.id}:${input.email}`;
       const code = await AuthService.getVerificationCode(key);
 
-      MailService.emailVerificationRequest(input.email, code);
+      await MailService.emailVerificationRequest(input.email, code);
 
       span.end();
       return c.json({ success: true });
@@ -234,7 +257,13 @@ router.post(
       }
 
       const key = `verify_email:${user.id}:${input.email}`;
-      await AuthService.checkVerificationCode(key, input.code);
+      let isValid = await AuthService.checkVerificationCode(key, input.code);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
 
       await UserService.update(user.id, {
         email: input.email,
@@ -268,6 +297,7 @@ router.post(
       }
 
       if (helper.isEmpty(updates)) {
+        span.end();
         throw new HTTPException(400, { message: "Invalid Arguements" });
       }
 

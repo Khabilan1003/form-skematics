@@ -16,6 +16,10 @@ import {
 } from "./schema/auth.schema";
 import { trace } from "@opentelemetry/api";
 import { Span } from "@opentelemetry/api";
+import {
+  ExceptionSchema,
+  isExceptionSchema,
+} from "../service/schema/error.schema";
 
 // Tracer
 const tracer = trace.getTracer("auth-route", "1.0.0");
@@ -31,16 +35,19 @@ router.post("login", zValidator("json", loginBodySchema), async (c) => {
     // Check User Exist or Not
     const existUser = await UserService.findByEmail(user.email);
     if (!existUser) {
+      span.end();
       throw new HTTPException(404, { message: "Email Not Found" });
     }
 
     // Check The Password
     if (!(await comparePassword(user.password, existUser.password!))) {
+      span.end();
       throw new HTTPException(401, { message: "Incorrect Password" });
     }
 
     // Create Auth Token
     await AuthService.login({ c, userId: encodeIdToUUID(existUser.id) });
+
     span.end();
     return c.json({ success: true });
   });
@@ -54,6 +61,7 @@ router.post("sign-up", zValidator("json", signUpBodySchema), async (c) => {
     // Check user already exists
     const existUser = await UserService.findByEmail(user.email);
     if (helper.isValid(existUser)) {
+      span.end();
       throw new HTTPException(400, {
         message: "The email address already exist",
       });
@@ -93,7 +101,18 @@ router.put(
         });
 
       const key = `reset_password:${user!.id}`;
-      await AuthService.checkVerificationCode(key, input.code);
+      const verificationCode = await AuthService.checkVerificationCode(
+        key,
+        input.code
+      );
+
+      if (isExceptionSchema(verificationCode)) {
+        span.end();
+        throw new HTTPException(
+          (verificationCode as ExceptionSchema).statusCode,
+          { message: (verificationCode as ExceptionSchema).message }
+        );
+      }
 
       await UserService.update(user!.id, {
         password: await passwordHash(input.password, BCRYPT_SALT),
@@ -119,10 +138,12 @@ router.post(
 
         const user = await UserService.findByEmail(input.email);
 
-        if (helper.isEmpty(user))
+        if (helper.isEmpty(user)) {
+          span.end();
           throw new HTTPException(400, {
             message: "The EMAIL ID doesn't exist",
           });
+        }
 
         // Add a code of reset password to cache
         const key = `reset_password:${user!.id}`;

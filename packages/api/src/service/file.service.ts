@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import { commonImageMimeTypes, helper, nanoid } from "@form/utils";
 import { HTTPException } from "hono/http-exception";
+import { ExceptionSchema } from "./schema/error.schema";
 
 export class FileService {
-  static async upload(file: File): Promise<string> {
+  static async upload(file: File): Promise<string | ExceptionSchema> {
     const buffer = await file.arrayBuffer();
     const extension = file.name.split(".")[file.name.split(".").length - 1];
 
@@ -26,23 +27,30 @@ export class FileService {
       console.log(path);
 
       fs.writeFileSync(path, Buffer.from(buffer));
-    } catch (exception) {
-      throw new HTTPException(500, {
+    } catch (e) {
+      const exception: ExceptionSchema = {
+        statusCode: 500,
         message: "Server cannot upload the file",
-      });
+      };
+      return exception;
     }
 
     return fileName;
   }
 
-  static async getImage(fileName: string): Promise<File> {
+  static async getImage(fileName: string): Promise<File | ExceptionSchema> {
     const filePath = `${__dirname.replace(
       "/src/service",
       ""
     )}/static/upload/${fileName}`;
 
-    if (!fs.existsSync(filePath))
-      throw new HTTPException(404, { message: "File not found" });
+    if (!fs.existsSync(filePath)) {
+      const exception: ExceptionSchema = {
+        statusCode: 404,
+        message: "File not found",
+      };
+      return exception;
+    }
 
     // Read the file
     const buffer = fs.readFileSync(filePath);

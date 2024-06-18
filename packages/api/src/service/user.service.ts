@@ -102,6 +102,7 @@ export class UserService {
 
   static async delete(id: string | number): Promise<boolean> {
     if (typeof id === "string") {
+      
       id = decodeUUIDToId(id);
     }
 

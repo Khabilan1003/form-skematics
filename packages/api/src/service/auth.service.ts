@@ -25,7 +25,7 @@ import { HTTPException } from "hono/http-exception";
 import { RedisService } from "./redis.service";
 import { Context } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-
+import { ExceptionSchema } from "./schema/error.schema";
 interface LoginOptions {
   c: Context<any>;
   userId: string;
@@ -37,11 +37,12 @@ export class AuthService {
     setCookie(c, COOKIE_SESSION_NAME, value, SessionOptionsFactory());
   }
 
-  static getSession(c: Context<any>): any {
+  static getSession(c: Context<any>): Record<string, any> | void {
     const cookie = getCookie(c, COOKIE_SESSION_NAME);
 
-    if (!cookie)
-      throw new HTTPException(401, { message: "User not Logged IN" });
+    if (!cookie) {
+      throw new HTTPException(401, { message: "User not logged in" });
+    }
 
     try {
       return aesDecryptObject(cookie!, SESSION_KEY);
@@ -87,20 +88,31 @@ export class AuthService {
   }
 
   // Verified
-  static async checkVerificationCode(key: string, code: string): Promise<void> {
+  static async checkVerificationCode(
+    key: string,
+    code: string
+  ): Promise<void | ExceptionSchema> {
     const cache = await RedisService.hget({
       key,
       field: code,
     });
 
     if (!helper.isValid(cache)) {
-      throw new HTTPException(400, { message: "Invalid verification code" });
+      const exception: ExceptionSchema = {
+        statusCode: 400,
+        message: "Invalid verification code",
+      };
+      return exception;
     }
 
     const expired = parseNumber(cache);
 
     if (expired === undefined || expired < timestamp()) {
-      throw new HTTPException(400, { message: "Verification code expired" });
+      const exception: ExceptionSchema = {
+        statusCode: 400,
+        message: "Verification code expired",
+      };
+      return exception;
     }
   }
 }

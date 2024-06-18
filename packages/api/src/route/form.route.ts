@@ -16,6 +16,10 @@ import {
 import { FieldKindEnum } from "@form/shared-type-enums";
 import { removeNestedNullUndefined } from "../utils";
 import { trace, Span } from "@opentelemetry/api";
+import {
+  ExceptionSchema,
+  isExceptionSchema,
+} from "../service/schema/error.schema";
 
 // Tracer
 const tracer = trace.getTracer("form-route", "1.0.0");
@@ -30,7 +34,13 @@ router.get(":formId", authMiddleware, async (c) => {
     const formId: number = decodeUUIDToId(c.req.param("formId"));
     const userId: number = decodeUUIDToId(user.id);
 
-    await FormService.isFormAccessible(userId, formId);
+    let isValid = await FormService.isFormAccessible(userId, formId);
+    if (isExceptionSchema(isValid)) {
+      span.end();
+      throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+        message: (isValid as ExceptionSchema).message,
+      });
+    }
 
     const result = await FormService.findById(formId);
 
@@ -92,6 +102,17 @@ router.put(
 
       const input = c.req.valid("json");
 
+      let isValid = await FormService.isFormAccessible(
+        decodeUUIDToId(user.id),
+        decodeUUIDToId(formId)
+      );
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
       await FormService.update(user.id, formId, input);
 
       span.end();
@@ -109,8 +130,10 @@ router.delete(":formId", authMiddleware, async (c) => {
 
     const ids = await FormService.delete(userId, formId, false);
 
-    if (ids.length === 0)
+    if (ids.length === 0) {
+      span.end();
       throw new HTTPException(404, { message: "Form is not found" });
+    }
 
     span.end();
     return c.json({ success: true, formId: ids });
@@ -130,6 +153,17 @@ router.put(
 
       const input = c.req.valid("json");
 
+      let isValid = await FormService.isFormAccessible(
+        decodeUUIDToId(userId),
+        decodeUUIDToId(formId)
+      );
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
       await FormService.updateFormSetting(userId, formId, input);
 
       span.end();
@@ -147,7 +181,13 @@ router.post(":formId/form-field-group", authMiddleware, async (c) => {
       const userId: number = decodeUUIDToId(user.id);
       const formId: number = decodeUUIDToId(c.req.param("formId"));
 
-      await FormService.isFormAccessible(userId, formId);
+      let isValid = await FormService.isFormAccessible(userId, formId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
 
       const fieldGroupId = await FormService.createGroup(formId);
 
@@ -175,13 +215,28 @@ router.put(
 
         const updates = c.req.valid("json");
 
-        await FormService.isFormAccessible(userId, formId);
-        await FormService.isGroupAccessibe(formId, fieldGroupId);
+        let isValid = await FormService.isFormAccessible(userId, formId);
+        if (isExceptionSchema(isValid)) {
+          span.end();
+          throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+            message: (isValid as ExceptionSchema).message,
+          });
+        }
+
+        isValid = await FormService.isGroupAccessibe(formId, fieldGroupId);
+        if (isExceptionSchema(isValid)) {
+          span.end();
+          throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+            message: (isValid as ExceptionSchema).message,
+          });
+        }
 
         const isUpdated = await FormService.updateGroup(fieldGroupId, updates);
 
-        if (!isUpdated)
+        if (!isUpdated) {
+          span.end();
           throw new HTTPException(404, { message: "Field group not found" });
+        }
 
         span.end();
         return c.json({ success: true });
@@ -205,13 +260,28 @@ router.delete(
           c.req.param("fieldGroupId")
         );
 
-        await FormService.isFormAccessible(userId, formId);
-        await FormService.isGroupAccessibe(formId, fieldGroupId);
+        let isValid = await FormService.isFormAccessible(userId, formId);
+        if (isExceptionSchema(isValid)) {
+          span.end();
+          throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+            message: (isValid as ExceptionSchema).message,
+          });
+        }
+
+        isValid = await FormService.isGroupAccessibe(formId, fieldGroupId);
+        if (isExceptionSchema(isValid)) {
+          span.end();
+          throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+            message: (isValid as ExceptionSchema).message,
+          });
+        }
 
         const isDeleted = await FormService.deleteGroup(fieldGroupId);
 
-        if (!isDeleted)
+        if (!isDeleted) {
+          span.end();
           throw new HTTPException(404, { message: "Field group not found" });
+        }
 
         span.end();
         return c.json({ success: true });
@@ -233,8 +303,21 @@ router.post(
       const userId: number = decodeUUIDToId(user.id);
       const fieldGroupId: number = decodeUUIDToId(input.fieldGroupId);
 
-      await FormService.isFormAccessible(userId, formId);
-      await FormService.isGroupAccessibe(formId, fieldGroupId);
+      let isValid = await FormService.isFormAccessible(userId, formId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
+      isValid = await FormService.isGroupAccessibe(formId, fieldGroupId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
 
       const fieldId = await FormService.createField(fieldGroupId, input.kind);
 
@@ -265,7 +348,14 @@ router.put(
       };
       removeNestedNullUndefined(updates);
 
-      await FormService.isFormAccessible(userId, formId);
+      let isValid = await FormService.isFormAccessible(userId, formId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
       await FormService.updateField(fieldId, updates);
 
       span.end();
@@ -288,14 +378,36 @@ router.delete(
       const fieldId = decodeUUIDToId(c.req.param("fieldId"));
       const fieldGroupId = decodeUUIDToId(input.fieldGroupId);
 
-      await FormService.isFormAccessible(userId, formId);
-      await FormService.isGroupAccessibe(formId, fieldGroupId);
-      await FormService.isFieldAccessible(fieldGroupId, fieldId);
+      let isValid = await FormService.isFormAccessible(userId, formId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
+      isValid = await FormService.isGroupAccessibe(formId, fieldGroupId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
+
+      isValid = await FormService.isFieldAccessible(fieldGroupId, fieldId);
+      if (isExceptionSchema(isValid)) {
+        span.end();
+        throw new HTTPException((isValid as ExceptionSchema).statusCode, {
+          message: (isValid as ExceptionSchema).message,
+        });
+      }
 
       const isDeleted = await FormService.deleteField(fieldId);
 
-      if (!isDeleted)
+      if (!isDeleted) {
+        span.end();
         throw new HTTPException(404, { message: "Field Not Deleted" });
+      }
 
       span.end();
       return c.json({ success: true });
