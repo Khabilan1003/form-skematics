@@ -8,22 +8,30 @@ import {
 import { SubmissionService } from "../service/submission.service";
 import { FormService } from "../service/form.service";
 import { decodeUUIDToId } from "@form/utils";
+import { trace, Span } from "@opentelemetry/api";
 
+// Tracer
+const tracer = trace.getTracer("submission-route", "1.0.0");
+
+// Routes
 const router = new Hono().basePath("submission");
 
 router.get("/:formId", authMiddleware, async (c) => {
-  const user: Record<string, any> = c.get("user" as never);
+  return tracer.startActiveSpan("get-form-submission", async (span: Span) => {
+    const user: Record<string, any> = c.get("user" as never);
 
-  const formId = c.req.param("formId");
+    const formId = c.req.param("formId");
 
-  await FormService.isFormAccessible(
-    decodeUUIDToId(user.id),
-    decodeUUIDToId(formId)
-  );
+    await FormService.isFormAccessible(
+      decodeUUIDToId(user.id),
+      decodeUUIDToId(formId)
+    );
 
-  const submissions = await SubmissionService.findAll({ formId });
+    const submissions = await SubmissionService.findAll({ formId });
 
-  return c.json(submissions);
+    span.end();
+    return c.json(submissions);
+  });
 });
 
 router.post(
@@ -31,13 +39,16 @@ router.post(
   ipMiddleware,
   zValidator("json", createSubmissionBodySchema),
   async (c) => {
-    const ip: string = c.get("ip" as never);
+    return tracer.startActiveSpan("create-submission", async (span: Span) => {
+      const ip: string = c.get("ip" as never);
 
-    const input = c.req.valid("json");
+      const input = c.req.valid("json");
 
-    const submissionId = await SubmissionService.create(input, ip);
+      const submissionId = await SubmissionService.create(input, ip);
 
-    return c.json({ success: true, submissionId });
+      span.end();
+      return c.json({ success: true, submissionId });
+    });
   }
 );
 
@@ -46,14 +57,20 @@ router.delete(
   authMiddleware,
   zValidator("json", deleteSubmissionsBodySchema),
   async (c) => {
-    const input = c.req.valid("json");
+    return tracer.startActiveSpan(
+      "delete-submission-by-id",
+      async (span: Span) => {
+        const input = c.req.valid("json");
 
-    const isDeleted = await SubmissionService.deleteByIds(
-      input.formId,
-      input.submissionIds
+        const isDeleted = await SubmissionService.deleteByIds(
+          input.formId,
+          input.submissionIds
+        );
+
+        span.end();
+        return c.json({ success: isDeleted });
+      }
     );
-
-    return c.json({ success: isDeleted });
   }
 );
 

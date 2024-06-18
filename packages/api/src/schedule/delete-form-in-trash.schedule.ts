@@ -13,12 +13,11 @@ export const DeleteFormInTrashScheduler = new Bull(
 DeleteFormInTrashScheduler.process(async (payload, done) => {
   const forms = await FormService.findAllInTrash();
 
-  forms.map(
-    async (form) =>
-      await FormService.delete(
-        "",
-        forms.map((form) => form.id),
-        true
-      )
-  );
+  for (const form of forms) {
+    await FormService.delete(
+      "",
+      forms.map((form) => form.id),
+      true
+    );
+  }
 });

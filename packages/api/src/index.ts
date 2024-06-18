@@ -42,3 +42,5 @@ export default {
   PORT,
   fetch: app.fetch,
 };
+
+console.log("Server Running in Port: ", PORT);

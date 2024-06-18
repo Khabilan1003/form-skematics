@@ -58,12 +58,12 @@ export interface Property {
 }
 
 export type SubmissionFieldValue =
-  | string // This type is for SHORT_TEXT, LONG_TEXT, EMAIL, URL, YES_NO, DATE, COUNTRY
+  | string // This type is for SHORT_TEXT, LONG_TEXT, EMAIL, URL, YES_NO, DATE
   | number // This type is for NUMBER, RATING, OPINION_SCALE.
   | number[] // This type is for multiple choice ids , 0 - other , remaining ids will be greater than 1
   | { filename: string; size: number; url: string } // This type is for FILE_UPLOAD
   | { countryCode: string; phoneNumber: string } // This type is for PHONE_NUMBER
-  | { startDate: number; endDate: number }; // This type is for DATE_RANGE
+  | { startDate: string; endDate: string }; // This type is for DATE_RANGE
 
 export interface Validation {
   required?: boolean;
