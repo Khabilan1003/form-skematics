@@ -8,6 +8,7 @@ export const createFormBodySchema = z.object({
 
 export const updateFormBodySchema = z.object({
   name: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
   status: z.nativeEnum(FormStatusEnum).optional(),
   avatar: z.string().url().optional(),
 });
@@ -69,7 +70,7 @@ export const updateFormFieldBodySchema = z.object({
 
 export const deleteFormFieldBodySchema = z.object({
   fieldGroupId: z.string().uuid(),
-})
+});
 
 export const updateFieldGroupBodySchema = z.object({
   position: z.number().positive().optional(),

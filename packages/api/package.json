@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "start:otel": "bun run -r ./src/tracing.ts src/index.ts",
     "start": "bun run src/index.ts",
     "start:node": "npx ts-node src/index.ts",
     "dev": "wrangler dev src/index.ts",

@@ -11,5 +11,5 @@ export async function smtpSendMail(
   message: SmtpMessage
 ): Promise<string | unknown> {
   const result = await mailer.sendMail(message);
-  return result.messageId;
+  return result;
 }

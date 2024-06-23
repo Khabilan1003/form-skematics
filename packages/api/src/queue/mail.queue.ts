@@ -8,7 +8,12 @@ const MailQueue = new Bull("MailQueue", redisOptions);
 
 // Register Process
 MailQueue.process(async (payload, done) => {
-  return smtpSendMail(payload.data.data);
+  try {
+    const result = await smtpSendMail(payload.data.data);
+    done();
+  } catch (err) {
+    console.log(`Mail Sending Error : ${err}`);
+  }
 });
 
 export default MailQueue;

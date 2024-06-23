@@ -6,6 +6,7 @@ import { basename } from "path";
 import { readFileSync } from "fs";
 import { readDirSync } from "../utils";
 import { EMAIL_TEMPLATES_DIR } from "../environments";
+import { random } from "nanoid";
 
 const HTML_EXT = ".html";
 const TEMPLATE_TITLE_REGEX = /-{3,}\ntitle:\s+(.+)\n-{3,}/im;

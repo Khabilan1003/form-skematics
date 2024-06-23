@@ -31,7 +31,7 @@ const tracer = trace.getTracer("user-route", "1.0.0");
 // Routes
 const router = new Hono().basePath("user");
 
-router.get("user-detail", authMiddleware, async (c) => {
+router.get("/", authMiddleware, async (c) => {
   return tracer.startActiveSpan("user-detail", async (span: Span) => {
     const user: Record<string, any> = c.get("user" as never);
     span.end();
@@ -39,7 +39,7 @@ router.get("user-detail", authMiddleware, async (c) => {
   });
 });
 
-router.post("email-verification-code", authMiddleware, async (c) => {
+router.post("email-verification", authMiddleware, async (c) => {
   return tracer.startActiveSpan(
     "email-verification-code",
     async (span: Span) => {
@@ -54,7 +54,7 @@ router.post("email-verification-code", authMiddleware, async (c) => {
       const key = `verify_email:${user.id}`;
       const code = await AuthService.getVerificationCode(key);
 
-      await MailService.emailVerificationRequest(user.email, code);
+      MailService.emailVerificationRequest(user.email, code);
 
       span.end();
       return c.json({ success: true });
@@ -62,8 +62,8 @@ router.post("email-verification-code", authMiddleware, async (c) => {
   );
 });
 
-router.post(
-  "verify-email",
+router.put(
+  "email-verification",
   authMiddleware,
   zValidator("json", verifyEmailBodySchema),
   async (c) => {
@@ -72,8 +72,10 @@ router.post(
 
       const input = c.req.valid("json");
 
-      if (user.isEmailVerified)
+      if (user.isEmailVerified) {
+        span.end();
         throw new HTTPException(400, { message: "Email is already verified" });
+      }
 
       const key = `verify_email:${user.id}`;
 
@@ -95,8 +97,8 @@ router.post(
   }
 );
 
-router.post(
-  "update-user-password",
+router.put(
+  "/",
   authMiddleware,
   zValidator("json", updateUserPasswordBodySchema),
   async (c) => {
@@ -123,7 +125,7 @@ router.post(
           password: await passwordHash(input.newPassword, BCRYPT_SALT),
         });
 
-        await MailService.passwordChangeAlert(user.email);
+        MailService.passwordChangeAlert(user.email);
 
         span.end();
         return c.json({ success: true });
@@ -132,22 +134,29 @@ router.post(
   }
 );
 
-router.post("user-deletion-code", authMiddleware, async (c) => {
+router.post("account-delete", authMiddleware, async (c) => {
   return tracer.startActiveSpan("user-deletion-code", async (span: Span) => {
     const user: Record<string, any> = c.get("user" as never);
+
+    if (user.isDeletionScheduled) {
+      span.end();
+      throw new HTTPException(400, {
+        message: "Account is already scheduled for deletion",
+      });
+    }
 
     const key = `user_deletion:${user.id}`;
     const code = await AuthService.getVerificationCode(key);
 
-    await MailService.accountDeletionRequest(user.email, code);
+    MailService.accountDeletionRequest(user.email, code);
 
     span.end();
     return c.json({ success: true });
   });
 });
 
-router.post(
-  "verify-user-deletion",
+router.delete(
+  "account-delete",
   authMiddleware,
   zValidator("json", verifyEmailBodySchema),
   async (c) => {
@@ -173,7 +182,7 @@ router.post(
             timestamp() + hs(ACCOUNT_DELETION_SCHEDULE_INTERVAL)!,
         });
 
-        await MailService.scheduleAccountDeletionAlert(user.email, user.name);
+        MailService.scheduleAccountDeletionAlert(user.email, user.name);
 
         span.end();
         return c.json({ success: true });
@@ -182,7 +191,7 @@ router.post(
   }
 );
 
-router.post("cancel-user-deletion", authMiddleware, async (c) => {
+router.put("account-delete", authMiddleware, async (c) => {
   return tracer.startActiveSpan("cancel-user-deletion", async (span: Span) => {
     const user: Record<string, any> = c.get("user" as never);
 
@@ -200,7 +209,7 @@ router.post("cancel-user-deletion", authMiddleware, async (c) => {
 });
 
 router.post(
-  "change-email-code",
+  "email-update",
   authMiddleware,
   zValidator("json", emailBodySchema),
   async (c) => {
@@ -230,7 +239,7 @@ router.post(
       const key = `verify_email:${user.id}:${input.email}`;
       const code = await AuthService.getVerificationCode(key);
 
-      await MailService.emailVerificationRequest(input.email, code);
+      MailService.emailVerificationRequest(input.email, code);
 
       span.end();
       return c.json({ success: true });
@@ -238,8 +247,8 @@ router.post(
   }
 );
 
-router.post(
-  "update-email",
+router.put(
+  "email-update",
   authMiddleware,
   zValidator("json", updateEmailBodySchema),
   async (c) => {
@@ -276,8 +285,8 @@ router.post(
   }
 );
 
-router.post(
-  "update-user",
+router.put(
+  "/account",
   authMiddleware,
   zValidator("json", updateUserBodySchema),
   async (c) => {

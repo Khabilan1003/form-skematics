@@ -35,7 +35,7 @@ app.route("/", FormAnalticRouter);
 app.route("/", FormReportRouter);
 
 // Scheduler
-SchedulerService.start();
+// SchedulerService.start();
 
 // Start Server
 export default {

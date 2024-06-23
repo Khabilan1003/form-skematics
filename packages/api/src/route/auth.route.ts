@@ -127,7 +127,7 @@ router.put(
 );
 
 router.post(
-  "send-reset-password-email",
+  "reset-password",
   zValidator("json", sendResetPasswordEmailBodySchema),
   async (c) => {
     return tracer.startActiveSpan(
@@ -149,7 +149,7 @@ router.post(
         const key = `reset_password:${user!.id}`;
         const code = await AuthService.getVerificationCode(key);
 
-        MailService.emailVerificationRequest(user!.email, code);
+        await MailService.emailVerificationRequest(user!.email, code);
 
         span.end();
         return c.json({ success: true });
